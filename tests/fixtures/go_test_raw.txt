@@ -1,0 +1,51 @@
+{"Time":"2026-02-19T10:00:00.001Z","Action":"start","Package":"snip/internal/utils"}
+{"Time":"2026-02-19T10:00:00.002Z","Action":"run","Package":"snip/internal/utils","Test":"TestTruncate"}
+{"Time":"2026-02-19T10:00:00.003Z","Action":"output","Package":"snip/internal/utils","Test":"TestTruncate","Output":"=== RUN   TestTruncate\n"}
+{"Time":"2026-02-19T10:00:00.004Z","Action":"output","Package":"snip/internal/utils","Test":"TestTruncate","Output":"=== RUN   TestTruncate/short_string\n"}
+{"Time":"2026-02-19T10:00:00.005Z","Action":"output","Package":"snip/internal/utils","Test":"TestTruncate","Output":"=== RUN   TestTruncate/exact_length\n"}
+{"Time":"2026-02-19T10:00:00.006Z","Action":"output","Package":"snip/internal/utils","Test":"TestTruncate","Output":"=== RUN   TestTruncate/truncated\n"}
+{"Time":"2026-02-19T10:00:00.007Z","Action":"output","Package":"snip/internal/utils","Test":"TestTruncate","Output":"--- PASS: TestTruncate (0.00s)\n"}
+{"Time":"2026-02-19T10:00:00.008Z","Action":"pass","Package":"snip/internal/utils","Test":"TestTruncate","Elapsed":0.001}
+{"Time":"2026-02-19T10:00:00.009Z","Action":"run","Package":"snip/internal/utils","Test":"TestStripANSI"}
+{"Time":"2026-02-19T10:00:00.010Z","Action":"output","Package":"snip/internal/utils","Test":"TestStripANSI","Output":"=== RUN   TestStripANSI\n"}
+{"Time":"2026-02-19T10:00:00.011Z","Action":"output","Package":"snip/internal/utils","Test":"TestStripANSI","Output":"--- PASS: TestStripANSI (0.00s)\n"}
+{"Time":"2026-02-19T10:00:00.012Z","Action":"pass","Package":"snip/internal/utils","Test":"TestStripANSI","Elapsed":0.001}
+{"Time":"2026-02-19T10:00:00.013Z","Action":"run","Package":"snip/internal/utils","Test":"TestEstimateTokens"}
+{"Time":"2026-02-19T10:00:00.014Z","Action":"output","Package":"snip/internal/utils","Test":"TestEstimateTokens","Output":"=== RUN   TestEstimateTokens\n"}
+{"Time":"2026-02-19T10:00:00.015Z","Action":"output","Package":"snip/internal/utils","Test":"TestEstimateTokens","Output":"--- PASS: TestEstimateTokens (0.00s)\n"}
+{"Time":"2026-02-19T10:00:00.016Z","Action":"pass","Package":"snip/internal/utils","Test":"TestEstimateTokens","Elapsed":0.001}
+{"Time":"2026-02-19T10:00:00.100Z","Action":"output","Package":"snip/internal/utils","Output":"PASS\n"}
+{"Time":"2026-02-19T10:00:00.101Z","Action":"output","Package":"snip/internal/utils","Output":"ok  \tsnip/internal/utils\t0.100s\n"}
+{"Time":"2026-02-19T10:00:00.102Z","Action":"pass","Package":"snip/internal/utils","Elapsed":0.1}
+{"Time":"2026-02-19T10:00:00.200Z","Action":"start","Package":"snip/internal/filter"}
+{"Time":"2026-02-19T10:00:00.201Z","Action":"run","Package":"snip/internal/filter","Test":"TestKeepLines"}
+{"Time":"2026-02-19T10:00:00.202Z","Action":"output","Package":"snip/internal/filter","Test":"TestKeepLines","Output":"=== RUN   TestKeepLines\n"}
+{"Time":"2026-02-19T10:00:00.203Z","Action":"output","Package":"snip/internal/filter","Test":"TestKeepLines","Output":"--- PASS: TestKeepLines (0.00s)\n"}
+{"Time":"2026-02-19T10:00:00.204Z","Action":"pass","Package":"snip/internal/filter","Test":"TestKeepLines","Elapsed":0.001}
+{"Time":"2026-02-19T10:00:00.205Z","Action":"run","Package":"snip/internal/filter","Test":"TestRemoveLines"}
+{"Time":"2026-02-19T10:00:00.206Z","Action":"output","Package":"snip/internal/filter","Test":"TestRemoveLines","Output":"=== RUN   TestRemoveLines\n"}
+{"Time":"2026-02-19T10:00:00.207Z","Action":"output","Package":"snip/internal/filter","Test":"TestRemoveLines","Output":"--- PASS: TestRemoveLines (0.00s)\n"}
+{"Time":"2026-02-19T10:00:00.208Z","Action":"pass","Package":"snip/internal/filter","Test":"TestRemoveLines","Elapsed":0.001}
+{"Time":"2026-02-19T10:00:00.209Z","Action":"run","Package":"snip/internal/filter","Test":"TestFilterYAMLRoundtrip"}
+{"Time":"2026-02-19T10:00:00.210Z","Action":"output","Package":"snip/internal/filter","Test":"TestFilterYAMLRoundtrip","Output":"=== RUN   TestFilterYAMLRoundtrip\n"}
+{"Time":"2026-02-19T10:00:00.211Z","Action":"output","Package":"snip/internal/filter","Test":"TestFilterYAMLRoundtrip","Output":"--- PASS: TestFilterYAMLRoundtrip (0.00s)\n"}
+{"Time":"2026-02-19T10:00:00.212Z","Action":"pass","Package":"snip/internal/filter","Test":"TestFilterYAMLRoundtrip","Elapsed":0.001}
+{"Time":"2026-02-19T10:00:00.300Z","Action":"output","Package":"snip/internal/filter","Output":"PASS\n"}
+{"Time":"2026-02-19T10:00:00.301Z","Action":"output","Package":"snip/internal/filter","Output":"ok  \tsnip/internal/filter\t0.100s\n"}
+{"Time":"2026-02-19T10:00:00.302Z","Action":"pass","Package":"snip/internal/filter","Elapsed":0.1}
+{"Time":"2026-02-19T10:00:00.400Z","Action":"start","Package":"snip/internal/engine"}
+{"Time":"2026-02-19T10:00:00.401Z","Action":"run","Package":"snip/internal/engine","Test":"TestExecuteEcho"}
+{"Time":"2026-02-19T10:00:00.402Z","Action":"output","Package":"snip/internal/engine","Test":"TestExecuteEcho","Output":"=== RUN   TestExecuteEcho\n"}
+{"Time":"2026-02-19T10:00:00.403Z","Action":"output","Package":"snip/internal/engine","Test":"TestExecuteEcho","Output":"--- PASS: TestExecuteEcho (0.00s)\n"}
+{"Time":"2026-02-19T10:00:00.404Z","Action":"pass","Package":"snip/internal/engine","Test":"TestExecuteEcho","Elapsed":0.001}
+{"Time":"2026-02-19T10:00:00.500Z","Action":"output","Package":"snip/internal/engine","Output":"PASS\n"}
+{"Time":"2026-02-19T10:00:00.501Z","Action":"output","Package":"snip/internal/engine","Output":"ok  \tsnip/internal/engine\t0.100s\n"}
+{"Time":"2026-02-19T10:00:00.502Z","Action":"pass","Package":"snip/internal/engine","Elapsed":0.1}
+{"Time":"2026-02-19T10:00:00.600Z","Action":"start","Package":"snip/internal/tracking"}
+{"Time":"2026-02-19T10:00:00.601Z","Action":"run","Package":"snip/internal/tracking","Test":"TestTrack"}
+{"Time":"2026-02-19T10:00:00.602Z","Action":"output","Package":"snip/internal/tracking","Test":"TestTrack","Output":"=== RUN   TestTrack\n"}
+{"Time":"2026-02-19T10:00:00.603Z","Action":"output","Package":"snip/internal/tracking","Test":"TestTrack","Output":"--- PASS: TestTrack (0.01s)\n"}
+{"Time":"2026-02-19T10:00:00.604Z","Action":"pass","Package":"snip/internal/tracking","Test":"TestTrack","Elapsed":0.01}
+{"Time":"2026-02-19T10:00:00.700Z","Action":"output","Package":"snip/internal/tracking","Output":"PASS\n"}
+{"Time":"2026-02-19T10:00:00.701Z","Action":"output","Package":"snip/internal/tracking","Output":"ok  \tsnip/internal/tracking\t0.200s\n"}
+{"Time":"2026-02-19T10:00:00.702Z","Action":"pass","Package":"snip/internal/tracking","Elapsed":0.2}

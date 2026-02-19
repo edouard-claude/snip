@@ -1,0 +1,86 @@
+   Compiling proc-macro2 v1.0.78
+   Compiling unicode-ident v1.0.12
+   Compiling libc v0.2.153
+   Compiling cfg-if v1.0.0
+   Compiling quote v1.0.35
+   Compiling syn v2.0.48
+   Compiling serde_derive v1.0.196
+   Compiling serde v1.0.196
+   Compiling serde_json v1.0.113
+   Compiling clap_derive v4.4.7
+   Compiling clap v4.4.18
+   Compiling rtk v0.22.0 (/Users/user/code/rtk)
+   Compiling rusqlite v0.31.0
+   Compiling colored v2.1.0
+   Compiling regex v1.10.3
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.34s
+     Running unittests src/main.rs (target/debug/deps/rtk-abc123)
+
+running 42 tests
+test config::tests::test_default_config ... ok
+test config::tests::test_load_config ... ok
+test config::tests::test_config_path ... ok
+test filter::tests::test_none_level ... ok
+test filter::tests::test_minimal_level ... ok
+test filter::tests::test_aggressive_level ... ok
+test filter::tests::test_empty_input ... ok
+test git::tests::test_parse_status ... ok
+test git::tests::test_parse_diff ... ok
+test git::tests::test_parse_log ... ok
+test git::tests::test_git_add ... ok
+test git::tests::test_git_commit ... ok
+test git::tests::test_git_push ... ok
+test git::tests::test_git_stash ... ok
+test git::tests::test_git_branch ... ok
+test git::tests::test_git_checkout ... ok
+test tracking::tests::test_track ... ok
+test tracking::tests::test_track_passthrough ... ok
+test tracking::tests::test_summary ... ok
+test tracking::tests::test_daily ... ok
+test tracking::tests::test_cleanup ... ok
+test tee::tests::test_save_on_failure ... ok
+test tee::tests::test_no_save_on_success ... ok
+test tee::tests::test_rotate ... ok
+test utils::tests::test_truncate ... ok
+test utils::tests::test_strip_ansi ... ok
+test utils::tests::test_estimate_tokens ... ok
+test utils::tests::test_format_tokens ... ok
+test gain::tests::test_format_summary ... ok
+test gain::tests::test_format_daily ... ok
+test init::tests::test_install ... ok
+test init::tests::test_uninstall ... ok
+test init::tests::test_idempotent ... ok
+test cargo_cmd::tests::test_parse_build ... ok
+test cargo_cmd::tests::test_parse_test ... ok
+test cargo_cmd::tests::test_parse_clippy ... ok
+test go_cmd::tests::test_parse_test_json ... ok
+test go_cmd::tests::test_parse_build ... ok
+test go_cmd::tests::test_parse_vet ... ok
+test npm_cmd::tests::test_parse_install ... ok
+test npm_cmd::tests::test_parse_test ... ok
+test docker_cmd::tests::test_parse_compose ... ok
+
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+
+     Running tests/integration_test.rs (target/debug/deps/integration_test-def456)
+
+running 8 tests
+test test_git_log_integration ... ok
+test test_git_status_integration ... ok
+test test_go_test_integration ... ok
+test test_cargo_test_integration ... ok
+test test_tracking_integration ... ok
+test test_tee_integration ... ok
+test test_init_integration ... ok
+test test_passthrough_integration ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.15s
+
+   Doc-tests rtk
+
+running 3 tests
+test src/utils.rs - utils::truncate (line 15) ... ok
+test src/utils.rs - utils::strip_ansi (line 42) ... ok
+test src/utils.rs - utils::estimate_tokens (line 68) ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s

@@ -1,0 +1,26 @@
+name: "git-diff"
+version: 1
+description: "Condensed git diff with stat summary"
+
+match:
+  command: "git"
+  subcommand: "diff"
+  exclude_flags: ["--stat", "--name-only", "--name-status"]
+
+inject:
+  args: ["--stat"]
+  skip_if_present: ["--stat", "--name-only", "--name-status"]
+
+pipeline:
+  - action: "keep_lines"
+    pattern: "\\S"
+  - action: "truncate_lines"
+    max: 100
+    ellipsis: "..."
+  - action: "head"
+    n: 30
+    overflow_msg: "... and more files"
+  - action: "format_template"
+    template: "{{.count}} files changed:\n{{.lines}}"
+
+on_error: "passthrough"

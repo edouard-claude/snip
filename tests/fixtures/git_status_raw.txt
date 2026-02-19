@@ -1,0 +1,33 @@
+On branch feature/new-filters
+Your branch is up to date with 'origin/feature/new-filters'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   internal/filter/kubectl.go
+	new file:   internal/filter/kubectl_test.go
+	modified:   internal/filter/registry.go
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   CHANGELOG.md
+	modified:   README.md
+	modified:   internal/cli/cli.go
+	modified:   internal/engine/pipeline.go
+	modified:   internal/filter/actions.go
+	modified:   internal/filter/loader.go
+	modified:   internal/tracking/tracker.go
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	filters/kubectl-get-pods.yaml
+	filters/kubectl-logs.yaml
+	filters/kubectl-describe.yaml
+	internal/filter/npm.go
+	internal/filter/npm_test.go
+	tests/fixtures/kubectl_pods_raw.txt
+	tests/fixtures/kubectl_logs_raw.txt
+	tests/fixtures/npm_install_raw.txt
+	docs/kubectl-filters.md
+	docs/npm-filters.md
+

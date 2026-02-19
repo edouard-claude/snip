@@ -1,0 +1,23 @@
+name: "git-status"
+version: 1
+description: "Categorized git status with file counts"
+
+match:
+  command: "git"
+  subcommand: "status"
+  exclude_flags: ["--porcelain", "--short", "-s"]
+
+inject:
+  args: ["--porcelain"]
+  skip_if_present: ["--porcelain", "--short", "-s"]
+
+pipeline:
+  - action: "keep_lines"
+    pattern: "\\S"
+  - action: "group_by"
+    pattern: "^(.{2})"
+    format: "{{.Key}} ({{.Count}} files)"
+  - action: "format_template"
+    template: "{{.count}} changes:\n{{.lines}}"
+
+on_error: "passthrough"

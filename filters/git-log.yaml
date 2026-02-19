@@ -1,0 +1,25 @@
+name: "git-log"
+version: 1
+description: "Condense git log to hash + message + author + date"
+
+match:
+  command: "git"
+  subcommand: "log"
+  exclude_flags: ["--format", "--pretty", "--graph", "--oneline"]
+
+inject:
+  args: ["--pretty=format:%h %s (%ar) <%an>", "--no-merges"]
+  defaults:
+    "-n": "10"
+  skip_if_present: ["--merges", "--format", "--pretty", "--oneline"]
+
+pipeline:
+  - action: "keep_lines"
+    pattern: "\\S"
+  - action: "truncate_lines"
+    max: 80
+    ellipsis: "..."
+  - action: "format_template"
+    template: "{{.count}} commits:\n{{.lines}}"
+
+on_error: "passthrough"

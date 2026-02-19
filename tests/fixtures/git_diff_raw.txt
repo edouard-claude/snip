@@ -1,0 +1,162 @@
+diff --git a/internal/cli/cli.go b/internal/cli/cli.go
+index abc1234..def5678 100644
+--- a/internal/cli/cli.go
++++ b/internal/cli/cli.go
+@@ -15,6 +15,7 @@ import (
+ 	"snip/internal/engine"
+ 	"snip/internal/filter"
+ 	"snip/internal/tracking"
++	"snip/internal/kubectl"
+ )
+
+ const version = "0.22.0"
+@@ -45,6 +46,12 @@ func Run(args []string) int {
+ 		return p.Passthrough(cmdArgs[0], cmdArgs[1:])
+ 	}
+
++	// kubectl commands need special handling
++	if command == "kubectl" {
++		return runKubectl(cmdArgs, flags)
++	}
++
+ 	// Filter pipeline
+ 	return runPipeline(command, cmdArgs, flags)
+ }
+diff --git a/internal/engine/pipeline.go b/internal/engine/pipeline.go
+index 111aaa..222bbb 100644
+--- a/internal/engine/pipeline.go
++++ b/internal/engine/pipeline.go
+@@ -8,6 +8,7 @@ import (
+ 	"snip/internal/filter"
+ 	"snip/internal/tee"
+ 	"snip/internal/tracking"
++	"snip/internal/utils"
+ )
+
+ // Pipeline orchestrates command execution, filtering, tracking, and tee.
+@@ -30,7 +31,9 @@ func (p *Pipeline) Run(command string, args []string) int {
+ 	// No filter found: passthrough
+ 	if f == nil {
+-		return p.Passthrough(command, args)
++		if p.Verbose > 0 {
++			fmt.Fprintf(os.Stderr, "snip: no filter for %s, passthrough\n", command)
++		}
++		return p.Passthrough(command, args)
+ 	}
+
+ 	// Compute injected args
+diff --git a/internal/filter/actions.go b/internal/filter/actions.go
+index 333ccc..444ddd 100644
+--- a/internal/filter/actions.go
++++ b/internal/filter/actions.go
+@@ -20,6 +20,8 @@ var actions = map[string]ActionFunc{
+ 	"state_machine":   stateMachine,
+ 	"aggregate":       aggregate,
+ 	"format_template": formatTemplate,
++	"table_parse":     tableParse,
++	"column_select":   columnSelect,
+ }
+
+ // New actions for table-based output (kubectl, docker)
++func tableParse(input ActionResult, params map[string]any) (ActionResult, error) {
++	// Parse fixed-width table output into structured data
++	if len(input.Lines) < 2 {
++		return input, nil
++	}
++
++	headers := splitTableRow(input.Lines[0])
++	var rows []map[string]string
++	for _, line := range input.Lines[1:] {
++		values := splitTableRow(line)
++		row := make(map[string]string)
++		for i, h := range headers {
++			if i < len(values) {
++				row[h] = values[i]
++			}
++		}
++		rows = append(rows, row)
++	}
++
++	meta := copyMeta(input.Metadata)
++	meta["table_headers"] = headers
++	meta["table_rows"] = rows
++	return ActionResult{Lines: input.Lines, Metadata: meta}, nil
++}
++
++func columnSelect(input ActionResult, params map[string]any) (ActionResult, error) {
++	columns, ok := toStringSlice(params["columns"])
++	if !ok {
++		return input, fmt.Errorf("column_select: 'columns' must be string list")
++	}
++
++	rows, ok := input.Metadata["table_rows"].([]map[string]string)
++	if !ok {
++		return input, nil
++	}
++
++	var out []string
++	out = append(out, strings.Join(columns, "\t"))
++	for _, row := range rows {
++		var vals []string
++		for _, col := range columns {
++			vals = append(vals, row[col])
++		}
++		out = append(out, strings.Join(vals, "\t"))
++	}
++	return ActionResult{Lines: out, Metadata: input.Metadata}, nil
++}
+diff --git a/internal/filter/loader.go b/internal/filter/loader.go
+index 555eee..666fff 100644
+--- a/internal/filter/loader.go
++++ b/internal/filter/loader.go
+@@ -45,6 +45,9 @@ func LoadUserFilters(dir string) ([]Filter, error) {
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "snip: skipping invalid filter %s: %v\n", entry.Name(), err)
+ 			continue
++		}
++		if f.Version > maxSupportedVersion {
++			fmt.Fprintf(os.Stderr, "snip: filter %s requires newer snip version\n", f.Name)
+ 		}
+ 		filters = append(filters, *f)
+ 	}
+diff --git a/internal/tracking/tracker.go b/internal/tracking/tracker.go
+index 777ggg..888hhh 100644
+--- a/internal/tracking/tracker.go
++++ b/internal/tracking/tracker.go
+@@ -55,6 +55,15 @@ func (t *Tracker) Track(originalCmd, snipCmd string, inputTokens, outputTokens i
+ 	return nil
+ }
+
++// GetTopCommands returns the most frequently filtered commands.
++func (t *Tracker) GetTopCommands(limit int) ([]CommandStat, error) {
++	rows, err := t.db.Query(topCommandsSQL, limit)
++	if err != nil {
++		return nil, fmt.Errorf("top commands: %w", err)
++	}
++	defer rows.Close()
++	// ... implementation
++}
++
+ // TrackPassthrough records a passthrough (unfiltered) command.
+ func (t *Tracker) TrackPassthrough(cmd string, tokens int, execTimeMs int64) error {
+ 	return t.Track(cmd, cmd, tokens, tokens, execTimeMs)
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 999iii..aaajjj 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,5 +1,15 @@
+ # Changelog
+
++## [0.22.0] - 2026-02-19
++
++### Added
++- kubectl support: get pods, logs, describe
++- npm/yarn/pnpm install filtering
++- New DSL actions: table_parse, column_select
++
++### Fixed
++- Version compatibility check for filters
++
+ ## [0.21.1] - 2026-02-18
+
+ ### Fixed

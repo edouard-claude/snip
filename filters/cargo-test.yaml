@@ -1,0 +1,32 @@
+name: "cargo-test"
+version: 1
+description: "Condensed cargo test output"
+
+match:
+  command: "cargo"
+  subcommand: "test"
+
+pipeline:
+  - action: "remove_lines"
+    pattern: "^\\s*(Compiling|Downloading|Downloaded|Updating|Running|Executable)"
+  - action: "keep_lines"
+    pattern: "\\S"
+  - action: "state_machine"
+    states:
+      start:
+        keep: "^(test |running |test result)"
+        until: "^failures"
+        next: "failures"
+      failures:
+        keep: "."
+        until: "^$"
+        next: "done"
+  - action: "aggregate"
+    patterns:
+      pass: "\\.\\.\\. ok$"
+      fail: "\\.\\.\\. FAILED$"
+      ignored: "\\.\\.\\. ignored$"
+  - action: "format_template"
+    template: "{{.lines}}"
+
+on_error: "passthrough"

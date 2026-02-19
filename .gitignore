@@ -1,0 +1,36 @@
+_bmad*
+source_rtk*
+
+# Go binaries
+/snip
+/cmd/snip/snip
+*.exe
+*.test
+*.out
+
+# Build artifacts
+/bin/
+/dist/
+
+# Test cache
+.testcache/
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SQLite
+*.db
+*.db-journal
+*.db-wal
+
+# Tee output
+tee/

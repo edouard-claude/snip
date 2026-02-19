@@ -1,0 +1,165 @@
+commit 8cb198e4a3d2f1b5c7e9a0d4f6b8c2e1a3d5f7b9 (HEAD -> main, tag: v0.22.0, origin/main)
+Author: GitHub Actions <github-actions[bot]@users.noreply.github.com>
+Date:   Wed Feb 19 10:30:45 2026 +0100
+
+    chore(master): release 0.22.0 (#201)
+
+    Release-As: 0.22.0
+
+commit 393fa5b2c4d6e8a0b2d4f6a8c0e2d4f6a8b0c2d4
+Author: John Doe <john@example.com>
+Date:   Wed Feb 19 09:15:30 2026 +0100
+
+    feat: add `rtk wc` command for compact word/line/byte counts (#175)
+
+    Adds a new `wc` subcommand that provides compact output for word count.
+    This reduces token usage by ~80% compared to raw `wc` output.
+
+    Closes #174
+
+commit c29644b3d5e7a9b1c3d5f7a9b1c3d5e7a9b1c3d5
+Author: GitHub Actions <github-actions[bot]@users.noreply.github.com>
+Date:   Tue Feb 18 22:45:00 2026 +0100
+
+    chore(master): release 0.21.1 (#179)
+
+commit d196c2d4e6a8b0c2d4f6a8b0c2d4e6a8b0c2d4e6
+Author: Jane Smith <jane@example.com>
+Date:   Tue Feb 18 20:30:00 2026 +0100
+
+    fix: gh run view drops --log-failed, --log, --json flags (#159)
+
+    The gh run view command was incorrectly stripping important flags.
+    This fix preserves all user-specified flags while still filtering output.
+
+commit aa0b462f5a7b9c1d3e5f7a9b1c3d5e7a9b1c3d5e7
+Author: GitHub Actions <github-actions[bot]@users.noreply.github.com>
+Date:   Tue Feb 18 18:00:00 2026 +0100
+
+    chore(master): release 0.21.0 (#178)
+
+commit 510c491a6b8c0d2e4f6a8b0c2d4e6a8b0c2d4e6a8
+Author: Pierre Martin <pierre@example.com>
+Date:   Tue Feb 18 16:30:00 2026 +0100
+
+    feat(docker): add docker compose support (#110)
+
+    - Parse docker compose output
+    - Filter build logs
+    - Compact service status
+
+    Co-authored-by: Alice Johnson <alice@example.com>
+
+commit c83a834b7c9d1e3f5a7b9c1d3e5f7a9b1c3d5e7a9
+Author: Rui Chen <rui@example.com>
+Date:   Tue Feb 18 14:00:00 2026 +0100
+
+    docs: add brew install note (#177)
+
+commit 577e082c8d0e2f4a6b8c0d2e4f6a8b0c2d4e6a8b0
+Author: GitHub Actions <github-actions[bot]@users.noreply.github.com>
+Date:   Mon Feb 17 22:00:00 2026 +0100
+
+    chore(master): release 0.20.1 (#167)
+
+commit 0b34772d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9b1
+Author: DevOps Bot <devops@example.com>
+Date:   Mon Feb 17 20:00:00 2026 +0100
+
+    fix: install to ~/.local/bin instead of /usr/local/bin (closes #155)
+
+    Changed default install path to respect XDG conventions.
+    Falls back to /usr/local/bin if ~/.local/bin doesn't exist.
+
+commit 78c9e94a0b2c4d6e8f0a2b4c6d8e0f2a4b6c8d0e2
+Author: GitHub Actions <github-actions[bot]@users.noreply.github.com>
+Date:   Mon Feb 17 18:00:00 2026 +0100
+
+    chore(master): release 0.20.0 (#152)
+
+commit a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
+Author: Sarah Kim <sarah@example.com>
+Date:   Mon Feb 17 15:00:00 2026 +0100
+
+    feat: add npm/yarn/pnpm command support (#150)
+
+    New commands:
+    - npm install: strip progress bars, show summary
+    - npm test: parse TAP output
+    - yarn install: compact dependency tree
+    - pnpm install: filter download progress
+
+commit b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1
+Author: Tom Lee <tom@example.com>
+Date:   Sun Feb 16 20:00:00 2026 +0100
+
+    refactor: extract common git utilities (#148)
+
+    Moved shared git parsing logic into dedicated module.
+    Reduces code duplication across git subcommands.
+
+commit c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2
+Author: Lisa Wang <lisa@example.com>
+Date:   Sun Feb 16 16:00:00 2026 +0100
+
+    test: add integration tests for cargo commands (#145)
+
+commit d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3
+Author: Mike Brown <mike@example.com>
+Date:   Sat Feb 15 14:00:00 2026 +0100
+
+    fix: handle unicode in file paths (#142)
+
+    Git diff output with unicode filenames was being truncated incorrectly.
+
+commit e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4
+Author: GitHub Actions <github-actions[bot]@users.noreply.github.com>
+Date:   Sat Feb 15 12:00:00 2026 +0100
+
+    chore(master): release 0.19.0 (#140)
+
+commit f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5
+Author: Ana Garcia <ana@example.com>
+Date:   Fri Feb 14 18:00:00 2026 +0100
+
+    feat: kubectl support with pod status filtering (#138)
+
+    - kubectl get pods: compact table
+    - kubectl logs: tail with pattern filter
+    - kubectl describe: extract key sections
+
+commit a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6
+Author: Chris Taylor <chris@example.com>
+Date:   Fri Feb 14 14:00:00 2026 +0100
+
+    docs: update README with performance benchmarks (#136)
+
+commit b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7
+Author: Dev Team <dev@example.com>
+Date:   Thu Feb 13 20:00:00 2026 +0100
+
+    ci: add cross-platform builds (#134)
+
+    - macOS ARM64 and AMD64
+    - Linux ARM64 and AMD64
+    - Windows AMD64
+
+commit c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8
+Author: Pat Wilson <pat@example.com>
+Date:   Thu Feb 13 16:00:00 2026 +0100
+
+    perf: reduce startup time to <5ms (#132)
+
+    - Lazy-load filter registry
+    - Defer SQLite connection
+    - Optimize regex compilation with lazy_static
+
+commit d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9
+Author: Jordan Park <jordan@example.com>
+Date:   Wed Feb 12 22:00:00 2026 +0100
+
+    feat: add python/pytest support (#130)
+
+    - pytest: parse JSON output, show fail summary
+    - pip install: filter download progress
+    - python -m: passthrough with tracking
