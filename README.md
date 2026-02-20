@@ -57,19 +57,80 @@ Claude Code → PreToolUse hook → snip intercepts command
 ### From source
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/snip.git
+git clone https://github.com/edouard-claude/snip.git
 cd snip
 make build
 make install
 ```
 
-### Setup Claude Code integration
+Requires Go 1.24+ and `jq` (for the hook script).
+
+## Integration
+
+### Claude Code
 
 ```bash
 snip init
 ```
 
-This installs a PreToolUse hook that transparently rewrites supported commands through snip. Supported commands: `git`, `go`, `cargo`, `npm`, `npx`, `yarn`, `pnpm`, `docker`, `kubectl`, `make`, `pip`, `pytest`, `jest`, `tsc`, `eslint`, `rustc`.
+This does three things:
+1. Installs a hook script at `~/.claude/hooks/snip-rewrite.sh`
+2. Patches `~/.claude/settings.json` to register a `PreToolUse` hook
+3. Creates `~/.config/snip/filters/` for custom filters
+
+**How it works:** When Claude Code calls a Bash tool, the PreToolUse hook intercepts the command, rewrites `git status` to `snip git status`, and returns the filtered output. Claude Code never sees the substitution — it receives compressed output as if the original command produced it.
+
+Supported commands: `git`, `go`, `cargo`, `npm`, `npx`, `yarn`, `pnpm`, `docker`, `kubectl`, `make`, `pip`, `pytest`, `jest`, `tsc`, `eslint`, `rustc`.
+
+To uninstall:
+
+```bash
+snip init --uninstall
+```
+
+### Cursor
+
+Cursor supports hooks since v1.7 via `~/.cursor/hooks.json`. Add a `beforeShellExecution` hook:
+
+```json
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "~/.claude/hooks/snip-rewrite.sh"
+      }
+    ]
+  }
+}
+```
+
+> Note: Cursor's hook protocol is similar but not identical to Claude Code's. This integration is experimental.
+
+### Aider / Windsurf / Other Tools
+
+Tools without a hook system can still use snip through shell aliases:
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+alias git="snip git"
+alias go="snip go"
+alias cargo="snip cargo"
+alias npm="snip npm"
+```
+
+Or instruct the LLM via system prompt / rules file to prefix commands with `snip`.
+
+### Direct Usage (no AI tool)
+
+snip works standalone — useful for reducing noise in your own terminal:
+
+```bash
+snip git log -10
+snip go test ./...
+snip cargo test
+snip gain           # see your token savings
+```
 
 ## Usage
 
@@ -84,6 +145,7 @@ snip cargo test
 snip gain
 snip gain --daily
 snip gain --json
+snip gain --csv
 
 # Verbose mode (see what snip does)
 snip -v git log -5
@@ -93,6 +155,10 @@ snip proxy ls -la
 
 # Show config
 snip config
+
+# Install / uninstall Claude Code hook
+snip init
+snip init --uninstall
 ```
 
 ## Filter DSL
