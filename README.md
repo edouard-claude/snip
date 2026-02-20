@@ -18,9 +18,10 @@ The result: sessions that exhaust prematurely, inflated API costs, and an agent 
 |---|---|---|
 | Filters | Compiled Rust code baked into the binary | Declarative YAML files — add a filter without writing Go |
 | Concurrency | 2 OS threads for stdout/stderr | Goroutines — lightweight, no thread pool overhead |
-| SQLite | Requires CGO + C compiler | Pure Go driver (`modernc.org/sqlite`) — true static binary |
+| SQLite | Requires CGO + C compiler | Pure Go driver (`modernc.org/sqlite`) — static binary, no C toolchain |
 | Cross-compilation | Needs per-target C toolchain for SQLite | `GOOS=linux GOARCH=arm64 go build` — done |
 | Contributing a filter | Write Rust, open PR, wait for release | Write YAML, drop in `~/.config/snip/filters/` |
+| Runtime deps | None (single binary) | None (single static binary, no system libs needed) |
 | Binary size | ~4MB | ~9MB (includes SQLite in pure Go) |
 
 snip is a clean-room reimplementation. Same concept, different trade-offs: **community extensibility** over compiled performance.
