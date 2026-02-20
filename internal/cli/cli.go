@@ -5,13 +5,13 @@ import (
 	"os"
 	"strings"
 
-	"snip/internal/config"
-	"snip/internal/display"
-	"snip/internal/engine"
-	"snip/internal/filter"
-	"snip/internal/initcmd"
-	"snip/internal/tee"
-	"snip/internal/tracking"
+	"github.com/edouard-claude/snip/internal/config"
+	"github.com/edouard-claude/snip/internal/display"
+	"github.com/edouard-claude/snip/internal/engine"
+	"github.com/edouard-claude/snip/internal/filter"
+	"github.com/edouard-claude/snip/internal/initcmd"
+	"github.com/edouard-claude/snip/internal/tee"
+	"github.com/edouard-claude/snip/internal/tracking"
 )
 
 const version = "0.1.0"

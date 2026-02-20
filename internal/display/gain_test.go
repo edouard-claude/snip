@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"snip/internal/tracking"
+	"github.com/edouard-claude/snip/internal/tracking"
 )
 
 func newTestTracker(t *testing.T) *tracking.Tracker {

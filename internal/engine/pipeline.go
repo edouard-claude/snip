@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"snip/internal/filter"
-	"snip/internal/tee"
-	"snip/internal/tracking"
-	"snip/internal/utils"
+	"github.com/edouard-claude/snip/internal/filter"
+	"github.com/edouard-claude/snip/internal/tee"
+	"github.com/edouard-claude/snip/internal/tracking"
+	"github.com/edouard-claude/snip/internal/utils"
 )
 
 // Pipeline orchestrates command execution, filtering, tracking, and tee.

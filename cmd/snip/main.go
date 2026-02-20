@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
-	snip "snip"
-	"snip/internal/cli"
-	"snip/internal/filter"
+	snip "github.com/edouard-claude/snip"
+	"github.com/edouard-claude/snip/internal/cli"
+	"github.com/edouard-claude/snip/internal/filter"
 )
 
 func main() {

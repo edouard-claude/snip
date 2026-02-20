@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"snip/internal/tracking"
-	"snip/internal/utils"
+	"github.com/edouard-claude/snip/internal/tracking"
+	"github.com/edouard-claude/snip/internal/utils"
 )
 
 // RunGain executes the gain (token savings report) command.

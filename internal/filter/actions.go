@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/template"
 
-	"snip/internal/utils"
+	"github.com/edouard-claude/snip/internal/utils"
 )
 
 // Registry of built-in actions.

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"snip/internal/utils"
+	"github.com/edouard-claude/snip/internal/utils"
 )
 
 func fixturesDir() string {
