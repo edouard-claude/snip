@@ -20,6 +20,12 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify build
+        run: go build ./...
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
