@@ -640,10 +640,8 @@ func compactPath(input ActionResult, params map[string]any) (ActionResult, error
 
 func copyMeta(m map[string]any) map[string]any {
 	out := make(map[string]any)
-	if m != nil {
-		for k, v := range m {
-			out[k] = v
-		}
+	for k, v := range m {
+		out[k] = v
 	}
 	return out
 }

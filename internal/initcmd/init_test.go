@@ -69,7 +69,7 @@ func TestPatchSettingsExisting(t *testing.T) {
 		},
 	}
 	data, _ := json.MarshalIndent(existing, "", "  ")
-	os.WriteFile(path, data, 0644)
+	_ = os.WriteFile(path, data, 0644)
 
 	err := patchSettings(path, hookPath)
 	if err != nil {
@@ -115,8 +115,8 @@ func TestPatchSettingsIdempotent(t *testing.T) {
 	hookPath := filepath.Join(dir, "snip-rewrite.sh")
 
 	// Patch twice
-	patchSettings(path, hookPath)
-	patchSettings(path, hookPath)
+	_ = patchSettings(path, hookPath)
+	_ = patchSettings(path, hookPath)
 
 	settings := readSettings(t, path)
 	hooks := settings["hooks"].(map[string]any)
@@ -134,7 +134,7 @@ func TestUnpatchSettings(t *testing.T) {
 	hookPath := filepath.Join(dir, "snip-rewrite.sh")
 
 	// Patch first
-	patchSettings(path, hookPath)
+	_ = patchSettings(path, hookPath)
 
 	// Unpatch
 	unpatchSettings(path)

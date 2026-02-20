@@ -45,11 +45,11 @@ func Execute(command string, args []string) (*Result, error) {
 
 	go func() {
 		defer wg.Done()
-		stdoutBuf.ReadFrom(stdoutPipe)
+		_, _ = stdoutBuf.ReadFrom(stdoutPipe)
 	}()
 	go func() {
 		defer wg.Done()
-		stderrBuf.ReadFrom(stderrPipe)
+		_, _ = stderrBuf.ReadFrom(stderrPipe)
 	}()
 
 	wg.Wait()

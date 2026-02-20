@@ -46,8 +46,8 @@ func (t *Tracker) Track(originalCmd, snipCmd string, inputTokens, outputTokens i
 		return fmt.Errorf("track: %w", err)
 	}
 
-	// Cleanup old records
-	t.db.Exec(cleanupSQL)
+	// Cleanup old records (best-effort)
+	_, _ = t.db.Exec(cleanupSQL)
 
 	return nil
 }

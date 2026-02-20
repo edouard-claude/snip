@@ -66,9 +66,9 @@ func TestTrackPassthrough(t *testing.T) {
 func TestGetRecent(t *testing.T) {
 	tracker := newTestTracker(t)
 
-	tracker.Track("cmd1", "snip cmd1", 100, 30, 10)
-	tracker.Track("cmd2", "snip cmd2", 200, 50, 20)
-	tracker.Track("cmd3", "snip cmd3", 300, 80, 30)
+	_ = tracker.Track("cmd1", "snip cmd1", 100, 30, 10)
+	_ = tracker.Track("cmd2", "snip cmd2", 200, 50, 20)
+	_ = tracker.Track("cmd3", "snip cmd3", 300, 80, 30)
 
 	recent, err := tracker.GetRecent(2)
 	if err != nil {

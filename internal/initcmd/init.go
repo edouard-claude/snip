@@ -153,9 +153,9 @@ func patchSettings(path, hookPath string) error {
 			return fmt.Errorf("read settings: %w", err)
 		}
 	} else {
-		// Backup
+		// Backup (best-effort)
 		backupPath := path + ".bak"
-		os.WriteFile(backupPath, data, 0644)
+		_ = os.WriteFile(backupPath, data, 0644)
 
 		if err := json.Unmarshal(data, &settings); err != nil {
 			return fmt.Errorf("parse settings: %w", err)
@@ -255,7 +255,7 @@ func unpatchSettings(path string) {
 	if err != nil {
 		return
 	}
-	os.WriteFile(path, out, 0644)
+	_ = os.WriteFile(path, out, 0644)
 }
 
 // isSnipEntry checks if a PreToolUse entry is a snip hook.

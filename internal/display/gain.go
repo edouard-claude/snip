@@ -41,7 +41,7 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 			showCSV = true
 		case "--history":
 			if i+1 < len(args) {
-				fmt.Sscanf(args[i+1], "%d", &historyN)
+				_, _ = fmt.Sscanf(args[i+1], "%d", &historyN)
 				i++
 			} else {
 				historyN = 10
@@ -188,9 +188,9 @@ func exportCSV(tracker *tracking.Tracker, days int) error {
 	}
 
 	w := csv.NewWriter(os.Stdout)
-	w.Write([]string{"date", "commands", "input_tokens", "output_tokens", "saved_tokens", "avg_savings"})
+	_ = w.Write([]string{"date", "commands", "input_tokens", "output_tokens", "saved_tokens", "avg_savings"})
 	for _, d := range daily {
-		w.Write([]string{
+		_ = w.Write([]string{
 			d.Day,
 			fmt.Sprintf("%d", d.Commands),
 			fmt.Sprintf("%d", d.InputTokens),
