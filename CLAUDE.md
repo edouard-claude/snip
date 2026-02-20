@@ -55,6 +55,7 @@ make test-race           # Run tests with race detector
 make lint                # go vet + golangci-lint
 make install             # Install to $GOPATH/bin
 go test -run TestName ./internal/filter/...   # Single test
+goreleaser release --snapshot --clean          # Test release build locally
 ```
 
 ## Design Constraints
@@ -72,6 +73,30 @@ Filters are declarative YAML files with 16 built-in actions:
 `keep_lines`, `remove_lines`, `truncate_lines`, `strip_ansi`, `head`, `tail`,
 `group_by`, `dedup`, `json_extract`, `json_schema`, `ndjson_stream`,
 `regex_extract`, `state_machine`, `aggregate`, `format_template`, `compact_path`
+
+## Release Workflow
+
+Uses GoReleaser (`.goreleaser.yaml`) + GitHub Actions (`.github/workflows/release.yaml`).
+A push of any `v*` tag triggers CI to build cross-platform binaries and create a GitHub release.
+
+### Semver Tagging
+
+Every push that changes behavior **must** include a version tag:
+- **Patch** (`v0.1.1`): bug fixes, no API change
+- **Minor** (`v0.2.0`): new features, backward-compatible
+- **Major** (`v1.0.0`): breaking changes
+
+```bash
+git tag -a v0.1.1 -m "fix: description" && git push origin v0.1.1
+```
+
+### Checklist
+
+1. `make test` passes
+2. Commit with conventional prefix (`fix:`, `feat:`, `breaking:`)
+3. Create annotated tag following semver
+4. Push tag — CI handles release automatically
+5. For first-time or local validation: `goreleaser release --snapshot --clean`
 
 ## Conventions
 
