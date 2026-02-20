@@ -81,31 +81,28 @@ func (p *Pipeline) Run(command string, args []string) int {
 		fmt.Fprint(os.Stderr, result.Stderr)
 	}
 
-	// Track
-	originalCmd := command + " " + strings.Join(fullArgs, " ")
-	snipCmd := command + " " + strings.Join(finalArgs, " ")
+	// Track (skip if no input — nothing meaningful to measure)
 	inputTokens := utils.EstimateTokens(result.Stdout)
-	outputTokens := utils.EstimateTokens(filtered)
-	if err := timed.Track(originalCmd, snipCmd, inputTokens, outputTokens); err != nil {
-		fmt.Fprintf(os.Stderr, "snip: tracking error: %v\n", err)
+	if inputTokens > 0 {
+		originalCmd := command + " " + strings.Join(fullArgs, " ")
+		snipCmd := command + " " + strings.Join(finalArgs, " ")
+		outputTokens := utils.EstimateTokens(filtered)
+		if err := timed.Track(originalCmd, snipCmd, inputTokens, outputTokens); err != nil {
+			fmt.Fprintf(os.Stderr, "snip: tracking error: %v\n", err)
+		}
 	}
 
 	return result.ExitCode
 }
 
 // Passthrough runs a command directly without filtering.
+// Passthrough commands are not tracked because the output goes directly
+// to stdout — snip never captures it, so token counts would be 0/0.
 func (p *Pipeline) Passthrough(command string, args []string) int {
-	timed := tracking.Start(p.Tracker)
-
 	code, err := Passthrough(command, args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "snip: %v\n", err)
 		return 1
-	}
-
-	cmd := command + " " + strings.Join(args, " ")
-	if err := timed.TrackPassthrough(cmd, 0); err != nil {
-		fmt.Fprintf(os.Stderr, "snip: tracking error: %v\n", err)
 	}
 
 	return code

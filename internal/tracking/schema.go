@@ -25,7 +25,7 @@ const summarySQL = `
 SELECT
 	COUNT(*) as total_commands,
 	COALESCE(SUM(saved_tokens), 0) as total_saved,
-	COALESCE(AVG(savings_pct), 0) as avg_savings,
+	COALESCE(SUM(saved_tokens) * 100.0 / NULLIF(SUM(input_tokens), 0), 0) as avg_savings,
 	COALESCE(SUM(exec_time_ms), 0) as total_time_ms
 FROM commands;
 `
@@ -37,7 +37,7 @@ SELECT
 	SUM(input_tokens) as input_tokens,
 	SUM(output_tokens) as output_tokens,
 	SUM(saved_tokens) as saved_tokens,
-	AVG(savings_pct) as avg_savings
+	COALESCE(SUM(saved_tokens) * 100.0 / NULLIF(SUM(input_tokens), 0), 0) as avg_savings
 FROM commands
 WHERE timestamp >= datetime('now', ? || ' days')
 GROUP BY date(timestamp)
