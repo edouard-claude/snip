@@ -1,5 +1,8 @@
 version: 2
 
+gomod:
+  proxy: false
+
 builds:
   - main: ./cmd/snip
     binary: snip
