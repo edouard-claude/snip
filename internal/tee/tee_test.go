@@ -100,7 +100,7 @@ func TestRotateFiles(t *testing.T) {
 	// Create 5 log files
 	for i := range 5 {
 		path := filepath.Join(dir, strings.Repeat("a", i+1)+".log")
-		os.WriteFile(path, []byte("data"), 0644)
+		_ = os.WriteFile(path, []byte("data"), 0644)
 	}
 
 	rotateFiles(dir, 3)

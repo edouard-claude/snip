@@ -12,7 +12,7 @@ func newTestTracker(t *testing.T) *Tracker {
 	if err != nil {
 		t.Fatalf("new tracker: %v", err)
 	}
-	t.Cleanup(func() { tracker.Close() })
+	t.Cleanup(func() { _ = tracker.Close() })
 	return tracker
 }
 
@@ -86,8 +86,8 @@ func TestGetRecent(t *testing.T) {
 func TestGetDaily(t *testing.T) {
 	tracker := newTestTracker(t)
 
-	tracker.Track("cmd1", "snip cmd1", 100, 30, 10)
-	tracker.Track("cmd2", "snip cmd2", 200, 50, 20)
+	_ = tracker.Track("cmd1", "snip cmd1", 100, 30, 10)
+	_ = tracker.Track("cmd2", "snip cmd2", 200, 50, 20)
 
 	daily, err := tracker.GetDaily(7)
 	if err != nil {

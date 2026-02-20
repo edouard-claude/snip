@@ -53,7 +53,7 @@ func Run(args []string) int {
 			return 1
 		}
 		if tracker != nil {
-			defer tracker.Close()
+			defer func() { _ = tracker.Close() }()
 		}
 		if err := display.RunGain(tracker, cmdArgs); err != nil {
 			display.PrintError(err.Error())
@@ -111,7 +111,7 @@ func runPipeline(command string, args []string, flags Flags) int {
 		fmt.Fprintf(os.Stderr, "snip: tracking disabled: %v\n", err)
 	}
 	if tracker != nil {
-		defer tracker.Close()
+		defer func() { _ = tracker.Close() }()
 	}
 
 	teeCfg := tee.DefaultConfig()

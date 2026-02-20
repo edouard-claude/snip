@@ -128,7 +128,7 @@ func Uninstall() error {
 	}
 
 	hookPath := filepath.Join(home, ".claude", "hooks", hookIdentifier)
-	os.Remove(hookPath)
+	_ = os.Remove(hookPath)
 
 	// Remove hook entry from settings.json
 	settingsPath := filepath.Join(home, ".claude", "settings.json")

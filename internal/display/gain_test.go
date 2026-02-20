@@ -14,7 +14,7 @@ func newTestTracker(t *testing.T) *tracking.Tracker {
 	if err != nil {
 		t.Fatalf("new tracker: %v", err)
 	}
-	t.Cleanup(func() { tracker.Close() })
+	t.Cleanup(func() { _ = tracker.Close() })
 	return tracker
 }
 
@@ -29,8 +29,8 @@ func TestRunGainNoData(t *testing.T) {
 func TestRunGainWithData(t *testing.T) {
 	tracker := newTestTracker(t)
 
-	tracker.Track("git log", "snip git log", 1000, 200, 50)
-	tracker.Track("go test", "snip go test", 2000, 300, 100)
+	_ = tracker.Track("git log", "snip git log", 1000, 200, 50)
+	_ = tracker.Track("go test", "snip go test", 2000, 300, 100)
 
 	err := RunGain(tracker, nil)
 	if err != nil {
@@ -40,7 +40,7 @@ func TestRunGainWithData(t *testing.T) {
 
 func TestRunGainDaily(t *testing.T) {
 	tracker := newTestTracker(t)
-	tracker.Track("cmd", "snip cmd", 500, 100, 30)
+	_ = tracker.Track("cmd", "snip cmd", 500, 100, 30)
 
 	err := RunGain(tracker, []string{"--daily"})
 	if err != nil {
@@ -50,8 +50,8 @@ func TestRunGainDaily(t *testing.T) {
 
 func TestRunGainHistory(t *testing.T) {
 	tracker := newTestTracker(t)
-	tracker.Track("cmd1", "snip cmd1", 500, 100, 30)
-	tracker.Track("cmd2", "snip cmd2", 800, 200, 40)
+	_ = tracker.Track("cmd1", "snip cmd1", 500, 100, 30)
+	_ = tracker.Track("cmd2", "snip cmd2", 800, 200, 40)
 
 	err := RunGain(tracker, []string{"--history", "5"})
 	if err != nil {

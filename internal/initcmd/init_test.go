@@ -167,10 +167,10 @@ func TestUnpatchPreservesOtherHooks(t *testing.T) {
 		},
 	}
 	data, _ := json.MarshalIndent(existing, "", "  ")
-	os.WriteFile(path, data, 0644)
+	_ = os.WriteFile(path, data, 0644)
 
 	// Add snip
-	patchSettings(path, hookPath)
+	_ = patchSettings(path, hookPath)
 
 	// Verify both present
 	settings := readSettings(t, path)

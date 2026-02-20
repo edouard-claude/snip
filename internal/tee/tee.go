@@ -124,6 +124,6 @@ func rotateFiles(dir string, maxFiles int) {
 	// Remove oldest
 	toRemove := len(logFiles) - maxFiles
 	for i := 0; i < toRemove; i++ {
-		os.Remove(filepath.Join(dir, logFiles[i].Name()))
+		_ = os.Remove(filepath.Join(dir, logFiles[i].Name()))
 	}
 }

@@ -27,7 +27,7 @@ func NewTracker(dbPath string) (*Tracker, error) {
 	}
 
 	if _, err := db.Exec(createTableSQL); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("create table: %w", err)
 	}
 
@@ -76,7 +76,7 @@ func (t *Tracker) GetDaily(days int) ([]DayStats, error) {
 	if err != nil {
 		return nil, fmt.Errorf("daily: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var stats []DayStats
 	for rows.Next() {
@@ -95,7 +95,7 @@ func (t *Tracker) GetRecent(n int) ([]CommandRecord, error) {
 	if err != nil {
 		return nil, fmt.Errorf("recent: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var records []CommandRecord
 	for rows.Next() {
