@@ -102,7 +102,9 @@ func printSummary(s *tracking.Summary) {
 
 	// Efficiency bar
 	pct := s.AvgSavings
-	if pct > 100 {
+	if pct < 0 {
+		pct = 0
+	} else if pct > 100 {
 		pct = 100
 	}
 	barLen := 20
