@@ -29,5 +29,5 @@ Thumbs.db
 *.db-journal
 *.db-wal
 
-# Tee output
-tee/
+# Tee output (runtime data, not internal/tee/ package)
+**/tee/*.log
