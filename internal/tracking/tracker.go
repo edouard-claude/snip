@@ -5,37 +5,68 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	_ "modernc.org/sqlite"
+	"sync"
 )
 
 // Tracker manages token savings tracking in SQLite.
 type Tracker struct {
-	db *sql.DB
+	db      *sql.DB
+	dbPath  string
+	once    sync.Once
+	initErr error
 }
 
-// NewTracker opens or creates a SQLite database for tracking.
+// NewTracker opens or creates a SQLite database for tracking (immediate open).
 func NewTracker(dbPath string) (*Tracker, error) {
-	dir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, fmt.Errorf("create db dir: %w", err)
+	t := &Tracker{dbPath: dbPath}
+	if err := t.ensureOpen(); err != nil {
+		return nil, err
 	}
+	return t, nil
+}
 
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("open db: %w", err)
-	}
+// NewLazyTracker creates a tracker that defers DB opening until first use.
+func NewLazyTracker(dbPath string) *Tracker {
+	return &Tracker{dbPath: dbPath}
+}
 
-	if _, err := db.Exec(createTableSQL); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("create table: %w", err)
-	}
+// WarmUp starts opening the DB in the background.
+// Call this before command execution so SQLite init overlaps with the command.
+func (t *Tracker) WarmUp() {
+	go func() { _ = t.ensureOpen() }()
+}
 
-	return &Tracker{db: db}, nil
+func (t *Tracker) ensureOpen() error {
+	t.once.Do(func() {
+		dir := filepath.Dir(t.dbPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.initErr = fmt.Errorf("create db dir: %w", err)
+			return
+		}
+
+		db, err := sql.Open("sqlite", t.dbPath)
+		if err != nil {
+			t.initErr = fmt.Errorf("open db: %w", err)
+			return
+		}
+
+		if _, err := db.Exec(createTableSQL); err != nil {
+			_ = db.Close()
+			t.initErr = fmt.Errorf("create table: %w", err)
+			return
+		}
+
+		t.db = db
+	})
+	return t.initErr
 }
 
 // Track records a filtered command execution.
 func (t *Tracker) Track(originalCmd, snipCmd string, inputTokens, outputTokens int, execTimeMs int64) error {
+	if err := t.ensureOpen(); err != nil {
+		return fmt.Errorf("track: %w", err)
+	}
+
 	saved := inputTokens - outputTokens
 	pct := 0.0
 	if inputTokens > 0 {
@@ -59,6 +90,9 @@ func (t *Tracker) TrackPassthrough(cmd string, tokens int, execTimeMs int64) err
 
 // GetSummary returns aggregate tracking stats.
 func (t *Tracker) GetSummary() (*Summary, error) {
+	if err := t.ensureOpen(); err != nil {
+		return nil, fmt.Errorf("summary: %w", err)
+	}
 	var s Summary
 	err := t.db.QueryRow(summarySQL).Scan(&s.TotalCommands, &s.TotalSaved, &s.AvgSavings, &s.TotalTimeMs)
 	if err != nil {
@@ -69,6 +103,9 @@ func (t *Tracker) GetSummary() (*Summary, error) {
 
 // GetDaily returns daily stats for the last N days.
 func (t *Tracker) GetDaily(days int) ([]DayStats, error) {
+	if err := t.ensureOpen(); err != nil {
+		return nil, fmt.Errorf("daily: %w", err)
+	}
 	if days <= 0 {
 		days = 7
 	}
@@ -91,6 +128,9 @@ func (t *Tracker) GetDaily(days int) ([]DayStats, error) {
 
 // GetRecent returns the last N tracked commands.
 func (t *Tracker) GetRecent(n int) ([]CommandRecord, error) {
+	if err := t.ensureOpen(); err != nil {
+		return nil, fmt.Errorf("recent: %w", err)
+	}
 	rows, err := t.db.Query(recentSQL, n)
 	if err != nil {
 		return nil, fmt.Errorf("recent: %w", err)
@@ -110,6 +150,9 @@ func (t *Tracker) GetRecent(n int) ([]CommandRecord, error) {
 
 // GetByCommand returns top N commands by tokens saved.
 func (t *Tracker) GetByCommand(limit int) ([]CommandStats, error) {
+	if err := t.ensureOpen(); err != nil {
+		return nil, fmt.Errorf("by command: %w", err)
+	}
 	if limit <= 0 {
 		limit = 10
 	}
@@ -132,6 +175,9 @@ func (t *Tracker) GetByCommand(limit int) ([]CommandStats, error) {
 
 // GetWeekly returns weekly stats for the last N weeks.
 func (t *Tracker) GetWeekly(weeks int) ([]PeriodStats, error) {
+	if err := t.ensureOpen(); err != nil {
+		return nil, fmt.Errorf("weekly: %w", err)
+	}
 	if weeks <= 0 {
 		weeks = 4
 	}
@@ -155,6 +201,9 @@ func (t *Tracker) GetWeekly(weeks int) ([]PeriodStats, error) {
 
 // GetMonthly returns monthly stats for the last N months.
 func (t *Tracker) GetMonthly(months int) ([]PeriodStats, error) {
+	if err := t.ensureOpen(); err != nil {
+		return nil, fmt.Errorf("monthly: %w", err)
+	}
 	if months <= 0 {
 		months = 6
 	}
@@ -178,7 +227,10 @@ func (t *Tracker) GetMonthly(months int) ([]PeriodStats, error) {
 
 // Close closes the database connection.
 func (t *Tracker) Close() error {
-	return t.db.Close()
+	if t.db != nil {
+		return t.db.Close()
+	}
+	return nil
 }
 
 // DBPath resolves the tracking database path.

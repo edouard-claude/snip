@@ -45,6 +45,11 @@ func (p *Pipeline) Run(command string, args []string) int {
 		finalArgs = injected
 	}
 
+	// Start SQLite init concurrently with command execution
+	if p.Tracker != nil {
+		p.Tracker.WarmUp()
+	}
+
 	// Start timing
 	timed := tracking.Start(p.Tracker)
 

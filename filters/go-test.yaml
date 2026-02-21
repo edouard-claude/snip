@@ -15,13 +15,13 @@ pipeline:
   - action: "keep_lines"
     pattern: "\\S"
   - action: "keep_lines"
-    pattern: "\"Action\":\"(pass|fail|skip|output)\""
-  - action: "remove_lines"
-    pattern: "\"Output\":\"=== RUN"
-  - action: "ndjson_stream"
-    group_by: "Package"
-    format: "{{.Key}}: {{.Count}} events"
-  - action: "format_template"
-    template: "{{.count}} packages:\n{{.lines}}"
+    pattern: "\"Test\":\""
+  - action: "keep_lines"
+    pattern: "\"Action\":\"(pass|fail)\""
+  - action: "aggregate"
+    patterns:
+      passed: '"Action":"pass"'
+      failed: '"Action":"fail"'
+    format: "{{if and (eq .passed 0) (eq .failed 0)}}No tests found{{else}}{{.passed}} passed, {{.failed}} failed{{end}}"
 
 on_error: "passthrough"

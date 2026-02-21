@@ -1,4 +1,4 @@
-.PHONY: build test test-race lint install clean
+.PHONY: build build-lite test test-race lint install install-lite clean
 
 BINARY=snip
 BUILD_DIR=cmd/snip
@@ -6,6 +6,9 @@ LDFLAGS=-ldflags="-s -w"
 
 build:
 	CGO_ENABLED=0 go build -o $(BINARY) $(LDFLAGS) ./$(BUILD_DIR)
+
+build-lite:
+	CGO_ENABLED=0 go build -tags lite -o $(BINARY) $(LDFLAGS) ./$(BUILD_DIR)
 
 test:
 	go test -cover ./...
@@ -18,6 +21,9 @@ lint:
 	@which golangci-lint > /dev/null 2>&1 && golangci-lint run || echo "golangci-lint not installed, skipping"
 
 install: build
+	cp $(BINARY) $(GOPATH)/bin/$(BINARY) 2>/dev/null || cp $(BINARY) /usr/local/bin/$(BINARY)
+
+install-lite: build-lite
 	cp $(BINARY) $(GOPATH)/bin/$(BINARY) 2>/dev/null || cp $(BINARY) /usr/local/bin/$(BINARY)
 
 clean:

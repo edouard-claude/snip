@@ -47,14 +47,21 @@ func Run(args []string) int {
 		return 0
 
 	case "gain":
-		tracker, err := lazyTracker()
+		if !tracking.DriverAvailable {
+			display.PrintError("gain requires full build (this binary was built with -tags lite)")
+			return 1
+		}
+		cfg, cfgErr := config.Load()
+		if cfgErr != nil {
+			cfg = config.DefaultConfig()
+		}
+		dbPath := tracking.DBPath(cfg.Tracking.DBPath)
+		tracker, err := tracking.NewTracker(dbPath)
 		if err != nil {
 			display.PrintError(err.Error())
 			return 1
 		}
-		if tracker != nil {
-			defer func() { _ = tracker.Close() }()
-		}
+		defer func() { _ = tracker.Close() }()
 		if err := display.RunGain(tracker, cmdArgs); err != nil {
 			display.PrintError(err.Error())
 			return 1
@@ -106,11 +113,11 @@ func runPipeline(command string, args []string, flags Flags) int {
 
 	registry := filter.NewRegistry(filters)
 
-	tracker, err := lazyTracker()
-	if err != nil && flags.Verbose > 0 {
-		fmt.Fprintf(os.Stderr, "snip: tracking disabled: %v\n", err)
-	}
-	if tracker != nil {
+	// Lazy tracker: DB opens on first use (concurrently with command execution)
+	var tracker *tracking.Tracker
+	if tracking.DriverAvailable {
+		dbPath := tracking.DBPath(cfg.Tracking.DBPath)
+		tracker = tracking.NewLazyTracker(dbPath)
 		defer func() { _ = tracker.Close() }()
 	}
 
@@ -129,15 +136,6 @@ func runPipeline(command string, args []string, flags Flags) int {
 	}
 
 	return pipeline.Run(command, args)
-}
-
-func lazyTracker() (*tracking.Tracker, error) {
-	cfg, _ := config.Load()
-	dbPath := tracking.DBPath("")
-	if cfg != nil {
-		dbPath = tracking.DBPath(cfg.Tracking.DBPath)
-	}
-	return tracking.NewTracker(dbPath)
 }
 
 func printUsage() {
