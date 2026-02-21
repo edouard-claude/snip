@@ -325,6 +325,19 @@ make lint         # go vet + golangci-lint
 make install      # install to $GOPATH/bin
 ```
 
+## Documentation
+
+Full documentation is available on the **[Wiki](https://github.com/edouard-claude/snip/wiki)**:
+
+- [Installation](https://github.com/edouard-claude/snip/wiki/Installation) — Homebrew, Go, binaries (macOS/Linux/Windows), from source
+- [Integration](https://github.com/edouard-claude/snip/wiki/Integration) — Claude Code, Cursor, Aider, standalone
+- [Gain Dashboard](https://github.com/edouard-claude/snip/wiki/Gain-Dashboard) — Token savings reports and analytics
+- [Filters](https://github.com/edouard-claude/snip/wiki/Filters) — Built-in filters, custom filters
+- [Filter DSL Reference](https://github.com/edouard-claude/snip/wiki/Filter-DSL-Reference) — All 16 pipeline actions
+- [Configuration](https://github.com/edouard-claude/snip/wiki/Configuration) — TOML config, environment variables
+- [Architecture](https://github.com/edouard-claude/snip/wiki/Architecture) — Design decisions, internals
+- [Contributing](https://github.com/edouard-claude/snip/wiki/Contributing) — Dev setup, adding filters, conventions
+
 ## Credits
 
 Inspired by [rtk](https://github.com/rtk-ai/rtk) by the rtk-ai team. rtk proved that filtering shell output before it reaches the LLM context is a powerful idea. snip rebuilds it in Go with a focus on extensibility — declarative YAML filters that anyone can write without touching the codebase.
