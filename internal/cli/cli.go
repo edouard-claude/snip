@@ -163,6 +163,10 @@ Examples:
   snip git log -10
   snip go test ./...
   snip gain --daily
+  snip gain --weekly
+  snip gain --monthly
+  snip gain --top 10
+  snip gain --history 20
   snip init
 `
 	fmt.Printf(usage, version)

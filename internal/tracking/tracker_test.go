@@ -101,6 +101,91 @@ func TestGetDaily(t *testing.T) {
 	}
 }
 
+func TestGetByCommand(t *testing.T) {
+	tracker := newTestTracker(t)
+
+	_ = tracker.Track("git log", "snip git log", 1000, 200, 50)
+	_ = tracker.Track("git log", "snip git log", 800, 100, 40)
+	_ = tracker.Track("go test", "snip go test", 2000, 300, 100)
+	_ = tracker.Track("ls -la", "snip ls -la", 50, 30, 5)
+
+	stats, err := tracker.GetByCommand(10)
+	if err != nil {
+		t.Fatalf("by command: %v", err)
+	}
+	if len(stats) != 3 {
+		t.Fatalf("got %d commands, want 3", len(stats))
+	}
+	// go test has most saved (1700), then git log (1500), then ls -la (20)
+	if stats[0].Command != "go test" {
+		t.Errorf("first command = %q, want go test", stats[0].Command)
+	}
+	if stats[0].SavedTokens != 1700 {
+		t.Errorf("go test saved = %d, want 1700", stats[0].SavedTokens)
+	}
+	if stats[1].Command != "git log" {
+		t.Errorf("second command = %q, want git log", stats[1].Command)
+	}
+	if stats[1].Count != 2 {
+		t.Errorf("git log count = %d, want 2", stats[1].Count)
+	}
+}
+
+func TestGetByCommandLimit(t *testing.T) {
+	tracker := newTestTracker(t)
+
+	_ = tracker.Track("cmd1", "snip cmd1", 100, 30, 10)
+	_ = tracker.Track("cmd2", "snip cmd2", 200, 50, 20)
+	_ = tracker.Track("cmd3", "snip cmd3", 300, 80, 30)
+
+	stats, err := tracker.GetByCommand(2)
+	if err != nil {
+		t.Fatalf("by command: %v", err)
+	}
+	if len(stats) != 2 {
+		t.Fatalf("got %d commands, want 2", len(stats))
+	}
+}
+
+func TestGetWeekly(t *testing.T) {
+	tracker := newTestTracker(t)
+
+	_ = tracker.Track("cmd1", "snip cmd1", 100, 30, 10)
+	_ = tracker.Track("cmd2", "snip cmd2", 200, 50, 20)
+
+	weekly, err := tracker.GetWeekly(4)
+	if err != nil {
+		t.Fatalf("weekly: %v", err)
+	}
+	if len(weekly) != 1 {
+		t.Fatalf("got %d weeks, want 1", len(weekly))
+	}
+	if weekly[0].Commands != 2 {
+		t.Errorf("commands = %d, want 2", weekly[0].Commands)
+	}
+}
+
+func TestGetMonthly(t *testing.T) {
+	tracker := newTestTracker(t)
+
+	_ = tracker.Track("cmd1", "snip cmd1", 500, 100, 30)
+	_ = tracker.Track("cmd2", "snip cmd2", 800, 200, 40)
+
+	monthly, err := tracker.GetMonthly(6)
+	if err != nil {
+		t.Fatalf("monthly: %v", err)
+	}
+	if len(monthly) != 1 {
+		t.Fatalf("got %d months, want 1", len(monthly))
+	}
+	if monthly[0].Commands != 2 {
+		t.Errorf("commands = %d, want 2", monthly[0].Commands)
+	}
+	if monthly[0].SavedTokens != 1000 {
+		t.Errorf("saved = %d, want 1000", monthly[0].SavedTokens)
+	}
+}
+
 func TestDBPath(t *testing.T) {
 	t.Setenv("SNIP_DB_PATH", "/custom/path.db")
 	if got := DBPath(""); got != "/custom/path.db" {

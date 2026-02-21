@@ -18,6 +18,14 @@ func newTestTracker(t *testing.T) *tracking.Tracker {
 	return tracker
 }
 
+func seedTracker(t *testing.T, tracker *tracking.Tracker) {
+	t.Helper()
+	_ = tracker.Track("git log", "snip git log", 1000, 200, 50)
+	_ = tracker.Track("go test", "snip go test", 2000, 300, 100)
+	_ = tracker.Track("git log", "snip git log", 800, 100, 40)
+	_ = tracker.Track("ls -la", "snip ls -la", 50, 30, 5)
+}
+
 func TestRunGainNoData(t *testing.T) {
 	tracker := newTestTracker(t)
 	err := RunGain(tracker, nil)
@@ -28,9 +36,7 @@ func TestRunGainNoData(t *testing.T) {
 
 func TestRunGainWithData(t *testing.T) {
 	tracker := newTestTracker(t)
-
-	_ = tracker.Track("git log", "snip git log", 1000, 200, 50)
-	_ = tracker.Track("go test", "snip go test", 2000, 300, 100)
+	seedTracker(t, tracker)
 
 	err := RunGain(tracker, nil)
 	if err != nil {
@@ -40,7 +46,7 @@ func TestRunGainWithData(t *testing.T) {
 
 func TestRunGainDaily(t *testing.T) {
 	tracker := newTestTracker(t)
-	_ = tracker.Track("cmd", "snip cmd", 500, 100, 30)
+	seedTracker(t, tracker)
 
 	err := RunGain(tracker, []string{"--daily"})
 	if err != nil {
@@ -48,12 +54,81 @@ func TestRunGainDaily(t *testing.T) {
 	}
 }
 
+func TestRunGainWeekly(t *testing.T) {
+	tracker := newTestTracker(t)
+	seedTracker(t, tracker)
+
+	err := RunGain(tracker, []string{"--weekly"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunGainMonthly(t *testing.T) {
+	tracker := newTestTracker(t)
+	seedTracker(t, tracker)
+
+	err := RunGain(tracker, []string{"--monthly"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunGainTop(t *testing.T) {
+	tracker := newTestTracker(t)
+	seedTracker(t, tracker)
+
+	err := RunGain(tracker, []string{"--top", "5"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunGainTopDefault(t *testing.T) {
+	tracker := newTestTracker(t)
+	seedTracker(t, tracker)
+
+	err := RunGain(tracker, []string{"--top"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRunGainHistory(t *testing.T) {
 	tracker := newTestTracker(t)
-	_ = tracker.Track("cmd1", "snip cmd1", 500, 100, 30)
-	_ = tracker.Track("cmd2", "snip cmd2", 800, 200, 40)
+	seedTracker(t, tracker)
 
 	err := RunGain(tracker, []string{"--history", "5"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunGainHistoryDefault(t *testing.T) {
+	tracker := newTestTracker(t)
+	seedTracker(t, tracker)
+
+	err := RunGain(tracker, []string{"--history"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunGainJSON(t *testing.T) {
+	tracker := newTestTracker(t)
+	seedTracker(t, tracker)
+
+	err := RunGain(tracker, []string{"--json"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunGainCSV(t *testing.T) {
+	tracker := newTestTracker(t)
+	seedTracker(t, tracker)
+
+	err := RunGain(tracker, []string{"--csv"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
