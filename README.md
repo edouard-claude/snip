@@ -17,21 +17,32 @@ snip sits between your AI tool and the shell, filtering output through declarati
   snip — Token Savings Report
   ══════════════════════════════
 
-  Commands filtered     102
-  Tokens saved          935.9K
+  Commands filtered     128
+  Tokens saved          2.3M
   Avg savings           99.8%
-  Total time            626.1s
+  Efficiency            Elite
+  Total time            725.9s
 
-  ████████████████████ 100%
+  ███████████████████░ 100%
+
+  14-day trend  ▁█▇
+
+  Top commands by tokens saved
+
+  Command                    Runs  Saved   Savings  Impact
+  ─────────────────────────  ────  ──────  ───────  ────────────
+  go test ./...              8     806.2K  99.8%    ████████████
+  go test ./pkg/...          3     482.9K  99.8%    ███████░░░░░
+  go test ./... -count=1     3     482.0K  99.8%    ███████░░░░░
 ```
 
-> Measured on a real Claude Code session — 102 commands, 935K tokens saved.
+> Measured on a real Claude Code session — 128 commands, 2.3M tokens saved.
 
 ## Quick Start
 
 ```bash
-# Install
-go install github.com/edouard-claude/snip/cmd/snip@latest
+# Install via Homebrew (macOS/Linux)
+brew install edouard-claude/tap/snip
 
 # Hook into Claude Code
 snip init
@@ -88,7 +99,13 @@ No filter match? The command passes through unchanged — zero overhead.
 
 ## Installation
 
-### From GitHub Releases (recommended)
+### Homebrew (recommended)
+
+```bash
+brew install edouard-claude/tap/snip
+```
+
+### From GitHub Releases
 
 Download the latest binary for your platform from [Releases](https://github.com/edouard-claude/snip/releases).
 
@@ -171,8 +188,11 @@ snip gain             # token savings report
 
 ```bash
 snip <command> [args]       # filter a command
-snip gain                   # savings report
+snip gain                   # full dashboard (summary + sparkline + top commands)
 snip gain --daily           # daily breakdown
+snip gain --weekly          # weekly breakdown
+snip gain --monthly         # monthly breakdown
+snip gain --top 10          # top N commands by tokens saved
 snip gain --history 20      # last 20 commands
 snip gain --json            # machine-readable output
 snip gain --csv             # CSV export
