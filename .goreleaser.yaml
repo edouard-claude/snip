@@ -26,6 +26,13 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+homebrew_casks:
+  - repository:
+      owner: edouard-claude
+      name: homebrew-tap
+    homepage: "https://github.com/edouard-claude/snip"
+    description: "CLI proxy that reduces LLM token consumption by 60-90% by filtering shell output"
+
 changelog:
   sort: asc
   filters:
