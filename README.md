@@ -41,12 +41,14 @@ snip sits between your AI tool and the shell, filtering output through declarati
 ## Quick Start
 
 ```bash
-# Install via Homebrew (macOS/Linux)
+# Homebrew (macOS/Linux)
 brew install edouard-claude/tap/snip
 
-# Hook into Claude Code
-snip init
+# Or with Go
+go install github.com/edouard-claude/snip/cmd/snip@latest
 
+# Then hook into Claude Code
+snip init
 # That's it. Every shell command Claude runs now goes through snip.
 ```
 
@@ -75,13 +77,13 @@ That's **97.7% fewer tokens**. The LLM gets the same signal — all tests pass �
 
 ```
 ┌─────────────┐     ┌─────────────────┐     ┌──────────────┐     ┌────────────┐
-│ Claude Code │────▶│ snip intercept  │────▶│ run command  │────▶│   filter   │
-│ runs `git`  │     │ match filter    │     │ capture I/O  │     │  pipeline  │
+│ Claude Code │────>│ snip intercept  │────>│ run command  │────>│   filter   │
+│  runs git   │     │  match filter   │     │  capture I/O │     │  pipeline  │
 └─────────────┘     └─────────────────┘     └──────────────┘     └─────┬──────┘
                                                                        │
                     ┌─────────────────┐     ┌──────────────┐           │
-                    │  Claude Code    │◀────│ track savings│◀──────────┘
-                    │  sees filtered  │     │ in SQLite    │
+                    │   Claude Code   │<────│ track savings│<──────────┘
+                    │  sees filtered  │     │  in SQLite   │
                     └─────────────────┘     └──────────────┘
 ```
 
