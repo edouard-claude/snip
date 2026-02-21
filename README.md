@@ -41,28 +41,47 @@ snip init
 
 ## How It Works
 
+**Before** — Claude Code sees this (689 tokens):
 ```
-Claude Code → PreToolUse hook → snip intercepts command
-                                   ↓
-                          Match declarative filter (O(1) lookup)
-                                   ↓
-                    Inject optimized args (e.g. --stat, --pretty=format:...)
-                                   ↓
-                  Execute command, capture stdout/stderr (goroutines)
-                                   ↓
-                    Apply filter pipeline (keep/remove/reformat)
-                                   ↓
-                  Return filtered output → track savings in SQLite
+$ go test ./...
+ok  	github.com/edouard-claude/snip/internal/cli	3.728s	coverage: 14.4% of statements
+ok  	github.com/edouard-claude/snip/internal/config	2.359s	coverage: 65.0% of statements
+ok  	github.com/edouard-claude/snip/internal/display	1.221s	coverage: 72.6% of statements
+ok  	github.com/edouard-claude/snip/internal/engine	1.816s	coverage: 47.9% of statements
+ok  	github.com/edouard-claude/snip/internal/filter	4.306s	coverage: 72.3% of statements
+ok  	github.com/edouard-claude/snip/internal/initcmd	2.981s	coverage: 59.1% of statements
+ok  	github.com/edouard-claude/snip/internal/tee	0.614s	coverage: 70.6% of statements
+ok  	github.com/edouard-claude/snip/internal/tracking	5.355s	coverage: 75.0% of statements
+ok  	github.com/edouard-claude/snip/internal/utils	5.515s	coverage: 100.0% of statements
 ```
 
-No filter match? The command passes through unchanged.
+**After** — snip returns this (16 tokens):
+```
+10 passed, 0 failed
+```
 
-### Measured Savings
+That's **97.7% fewer tokens**. The LLM gets the same signal — all tests pass — without the noise.
+
+```
+┌─────────────┐     ┌─────────────────┐     ┌──────────────┐     ┌────────────┐
+│  Claude Code │────▶│  snip intercept  │────▶│  run command  │────▶│   filter   │
+│  runs `git`  │     │  match filter    │     │  capture I/O  │     │  pipeline  │
+└─────────────┘     └─────────────────┘     └──────────────┘     └─────┬──────┘
+                                                                       │
+                    ┌─────────────────┐     ┌──────────────┐           │
+                    │  Claude Code    │◀────│  track savings │◀─────────┘
+                    │  sees filtered  │     │  in SQLite     │
+                    └─────────────────┘     └──────────────┘
+```
+
+No filter match? The command passes through unchanged — zero overhead.
+
+### Savings by Command
 
 | Command | Before | After | Savings |
 |---------|-------:|------:|--------:|
-| `go test ./...` | 689 tokens | 16 tokens | **97.7%** |
 | `cargo test` | 591 tokens | 5 tokens | **99.2%** |
+| `go test ./...` | 689 tokens | 16 tokens | **97.7%** |
 | `git log` | 371 tokens | 53 tokens | **85.7%** |
 | `git status` | 112 tokens | 16 tokens | **85.7%** |
 | `git diff` | 355 tokens | 66 tokens | **81.4%** |
