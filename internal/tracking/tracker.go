@@ -108,6 +108,74 @@ func (t *Tracker) GetRecent(n int) ([]CommandRecord, error) {
 	return records, rows.Err()
 }
 
+// GetByCommand returns top N commands by tokens saved.
+func (t *Tracker) GetByCommand(limit int) ([]CommandStats, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	rows, err := t.db.Query(byCommandSQL, limit)
+	if err != nil {
+		return nil, fmt.Errorf("by command: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var stats []CommandStats
+	for rows.Next() {
+		var s CommandStats
+		if err := rows.Scan(&s.Command, &s.Count, &s.InputTokens, &s.OutputTokens, &s.SavedTokens, &s.AvgSavings); err != nil {
+			return nil, fmt.Errorf("by command scan: %w", err)
+		}
+		stats = append(stats, s)
+	}
+	return stats, rows.Err()
+}
+
+// GetWeekly returns weekly stats for the last N weeks.
+func (t *Tracker) GetWeekly(weeks int) ([]PeriodStats, error) {
+	if weeks <= 0 {
+		weeks = 4
+	}
+	days := weeks * 7
+	rows, err := t.db.Query(weeklySQL, fmt.Sprintf("-%d", days))
+	if err != nil {
+		return nil, fmt.Errorf("weekly: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var stats []PeriodStats
+	for rows.Next() {
+		var s PeriodStats
+		if err := rows.Scan(&s.Period, &s.Commands, &s.InputTokens, &s.OutputTokens, &s.SavedTokens, &s.AvgSavings); err != nil {
+			return nil, fmt.Errorf("weekly scan: %w", err)
+		}
+		stats = append(stats, s)
+	}
+	return stats, rows.Err()
+}
+
+// GetMonthly returns monthly stats for the last N months.
+func (t *Tracker) GetMonthly(months int) ([]PeriodStats, error) {
+	if months <= 0 {
+		months = 6
+	}
+	days := months * 30
+	rows, err := t.db.Query(monthlySQL, fmt.Sprintf("-%d", days))
+	if err != nil {
+		return nil, fmt.Errorf("monthly: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var stats []PeriodStats
+	for rows.Next() {
+		var s PeriodStats
+		if err := rows.Scan(&s.Period, &s.Commands, &s.InputTokens, &s.OutputTokens, &s.SavedTokens, &s.AvgSavings); err != nil {
+			return nil, fmt.Errorf("monthly scan: %w", err)
+		}
+		stats = append(stats, s)
+	}
+	return stats, rows.Err()
+}
+
 // Close closes the database connection.
 func (t *Tracker) Close() error {
 	return t.db.Close()
