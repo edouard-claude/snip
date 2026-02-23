@@ -1,0 +1,26 @@
+Randomized with seed 12345
+
+UserController
+  GET /users
+    returns a list of users
+  POST /users
+    creates a new user
+    with invalid params
+      returns errors
+
+OrderService
+  #process
+    with valid order
+      processes payment
+      sends confirmation email
+    with invalid order
+      raises error
+
+Finished in 0.45623 seconds (files took 1.23 seconds to load)
+42 examples, 3 failures, 2 pending
+
+Failed examples:
+
+rspec ./spec/controllers/users_controller_spec.rb:25 # UserController POST /users with invalid params returns errors
+rspec ./spec/services/order_service_spec.rb:45 # OrderService #process with invalid order raises error
+rspec ./spec/services/order_service_spec.rb:52 # OrderService #process with invalid order logs error

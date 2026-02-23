@@ -1,0 +1,20 @@
+name: "bundle-install"
+version: 1
+description: "Condensed bundle install output"
+
+match:
+  command: "bundle"
+  subcommand: "install"
+
+pipeline:
+  - action: "keep_lines"
+    pattern: "\\S"
+  - action: "aggregate"
+    patterns:
+      installed: "^Installing "
+      using: "^Using "
+      fetching: "^Fetching "
+      complete: "^Bundle complete"
+    format: "Bundle complete ({{.using}} cached, {{.installed}} installed)"
+
+on_error: "passthrough"

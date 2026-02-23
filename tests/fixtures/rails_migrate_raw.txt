@@ -1,0 +1,16 @@
+== 20240115123456 CreateUsers: migrating ======================================
+-- create_table(:users)
+   -> 0.0234s
+== 20240115123456 CreateUsers: migrated (0.0235s) =============================
+
+== 20240116789012 AddIndexToOrders: migrating =================================
+-- add_index(:orders, :user_id)
+   -> 0.0123s
+== 20240116789012 AddIndexToOrders: migrated (0.0124s) ========================
+
+== 20240117111111 CreateProducts: migrating ===================================
+-- create_table(:products)
+   -> 0.0456s
+-- add_index(:products, :category_id)
+   -> 0.0078s
+== 20240117111111 CreateProducts: migrated (0.0534s) ==========================

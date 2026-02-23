@@ -1,0 +1,26 @@
+Fetching gem metadata from https://rubygems.org/...........
+Resolving dependencies...
+Using rake 13.0.6
+Using concurrent-ruby 1.2.2
+Using i18n 1.14.1
+Fetching minitest 5.20.0
+Installing minitest 5.20.0
+Using tzinfo 2.0.6
+Using activesupport 7.1.2
+Fetching nokogiri 1.15.4 (x86_64-linux)
+Installing nokogiri 1.15.4 (x86_64-linux)
+Using rack 3.0.8
+Using rack-test 2.1.0
+Using erubi 1.12.0
+Using rails-dom-testing 2.2.0
+Using rails-html-sanitizer 1.6.0
+Using actionview 7.1.2
+Using actionpack 7.1.2
+Fetching puma 6.4.0
+Installing puma 6.4.0 with native extensions
+Using railties 7.1.2
+Using sprockets 4.2.1
+Using sprockets-rails 3.4.2
+Using rails 7.1.2
+Bundle complete! 15 Gemfile dependencies, 78 gems now installed.
+Use `bundle info [gemname]` to see where a bundled gem is installed.

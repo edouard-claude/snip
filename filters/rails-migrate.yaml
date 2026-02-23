@@ -1,0 +1,25 @@
+name: "rails-migrate"
+version: 1
+description: "Condensed rails db:migrate output"
+
+match:
+  command: "rails"
+  subcommand: "db:migrate"
+
+pipeline:
+  - action: "keep_lines"
+    pattern: "\\S"
+  - action: "remove_lines"
+    pattern: "^\\s*(-|->)"
+  - action: "keep_lines"
+    pattern: "migrated"
+  - action: "regex_extract"
+    pattern: "== \\d+ (\\w+): migrated"
+    format: "- $1"
+  - action: "aggregate"
+    patterns:
+      migrated: "^-"
+  - action: "format_template"
+    template: "{{with .stats}}{{.migrated}} migrations executed:{{end}}\n{{.lines}}"
+
+on_error: "passthrough"

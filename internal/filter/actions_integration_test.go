@@ -215,6 +215,36 @@ func TestCargoTestFilterIntegration(t *testing.T) {
 	}
 }
 
+func TestRSpecFilterIntegration(t *testing.T) {
+	fixture := loadFixture(t, "rspec_raw.txt")
+	f := loadFilter(t, "rspec.yaml")
+
+	filtered, err := applyPipeline(f, fixture)
+	if err != nil {
+		t.Fatalf("apply pipeline: %v", err)
+	}
+
+	// Should be much shorter
+	if len(filtered) >= len(fixture) {
+		t.Errorf("filtered (%d) not shorter than input (%d)", len(filtered), len(fixture))
+	}
+
+	// Should contain summary
+	if !strings.Contains(filtered, "examples") {
+		t.Error("filtered output missing examples count")
+	}
+
+	// Should preserve failure paths (essential for debugging)
+	if strings.Contains(fixture, "rspec ./") && !strings.Contains(filtered, "rspec ./") {
+		t.Error("filtered output missing failure paths (rspec ./spec/...)")
+	}
+
+	inputTokens := utils.EstimateTokens(fixture)
+	outputTokens := utils.EstimateTokens(filtered)
+	savings := float64(inputTokens-outputTokens) / float64(inputTokens) * 100
+	t.Logf("rspec: %d -> %d tokens (%.1f%% savings)", inputTokens, outputTokens, savings)
+}
+
 // Edge case tests
 func TestFilterEmptyInput(t *testing.T) {
 	f := loadFilter(t, "git-log.yaml")
@@ -254,6 +284,82 @@ func TestFilterANSIInput(t *testing.T) {
 	if strings.Contains(filtered, "\x1b") {
 		t.Error("ANSI codes not stripped")
 	}
+}
+
+func TestBundleInstallFilterIntegration(t *testing.T) {
+	fixture := loadFixture(t, "bundle_install_raw.txt")
+	f := loadFilter(t, "bundle-install.yaml")
+
+	filtered, err := applyPipeline(f, fixture)
+	if err != nil {
+		t.Fatalf("apply pipeline: %v", err)
+	}
+
+	if len(filtered) >= len(fixture) {
+		t.Errorf("filtered (%d) not shorter than input (%d)", len(filtered), len(fixture))
+	}
+
+	if !strings.Contains(filtered, "Bundle complete") {
+		t.Error("filtered output missing Bundle complete")
+	}
+
+	// Calculate and log token savings
+	inputTokens := utils.EstimateTokens(fixture)
+	outputTokens := utils.EstimateTokens(filtered)
+	savings := float64(inputTokens-outputTokens) / float64(inputTokens) * 100
+	t.Logf("bundle-install: %d -> %d tokens (%.1f%% savings)", inputTokens, outputTokens, savings)
+}
+
+func TestRailsRoutesFilterIntegration(t *testing.T) {
+	fixture := loadFixture(t, "rails_routes_raw.txt")
+	f := loadFilter(t, "rails-routes.yaml")
+
+	filtered, err := applyPipeline(f, fixture)
+	if err != nil {
+		t.Fatalf("apply pipeline: %v", err)
+	}
+
+	// Should be shorter
+	if len(filtered) >= len(fixture) {
+		t.Errorf("filtered (%d) not shorter than input (%d)", len(filtered), len(fixture))
+	}
+
+	// Should contain routes total summary
+	if !strings.Contains(filtered, "routes total") {
+		t.Error("filtered output missing 'routes total'")
+	}
+
+	// Calculate and log token savings
+	inputTokens := utils.EstimateTokens(fixture)
+	outputTokens := utils.EstimateTokens(filtered)
+	savings := float64(inputTokens-outputTokens) / float64(inputTokens) * 100
+	t.Logf("rails-routes: %d -> %d tokens (%.1f%% savings)", inputTokens, outputTokens, savings)
+}
+
+func TestRailsMigrateFilterIntegration(t *testing.T) {
+	fixture := loadFixture(t, "rails_migrate_raw.txt")
+	f := loadFilter(t, "rails-migrate.yaml")
+
+	filtered, err := applyPipeline(f, fixture)
+	if err != nil {
+		t.Fatalf("apply pipeline: %v", err)
+	}
+
+	// Should be shorter
+	if len(filtered) >= len(fixture) {
+		t.Errorf("filtered (%d) not shorter than input (%d)", len(filtered), len(fixture))
+	}
+
+	// Should contain migrations executed summary
+	if !strings.Contains(filtered, "migrations executed") {
+		t.Error("filtered output missing 'migrations executed'")
+	}
+
+	// Calculate and log token savings
+	inputTokens := utils.EstimateTokens(fixture)
+	outputTokens := utils.EstimateTokens(filtered)
+	savings := float64(inputTokens-outputTokens) / float64(inputTokens) * 100
+	t.Logf("rails-migrate: %d -> %d tokens (%.1f%% savings)", inputTokens, outputTokens, savings)
 }
 
 func TestGracefulDegradation(t *testing.T) {
