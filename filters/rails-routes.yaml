@@ -1,0 +1,23 @@
+name: "rails-routes"
+version: 1
+description: "Summarized rails routes with count and truncation"
+
+match:
+  command: "rails"
+  subcommand: "routes"
+  exclude_flags: ["-g", "--grep", "-c", "--controller"]
+
+pipeline:
+  - action: "keep_lines"
+    pattern: "\\S"
+  - action: "remove_lines"
+    pattern: "^\\s*Prefix"
+  - action: "aggregate"
+    patterns:
+      routes: "(GET|POST|PUT|PATCH|DELETE)"
+  - action: "head"
+    n: 15
+  - action: "format_template"
+    template: "{{with .stats}}{{.routes}} routes total{{end}} (showing first 15):\n{{.lines}}"
+
+on_error: "passthrough"

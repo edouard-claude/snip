@@ -1,0 +1,17 @@
+name: "rspec"
+version: 1
+description: "Condensed RSpec output with pass/fail summary"
+
+match:
+  command: "rspec"
+  exclude_flags: ["--format", "-f"]
+
+pipeline:
+  - action: "keep_lines"
+    pattern: "\\S"
+  - action: "keep_lines"
+    pattern: "(^\\d+ examples|^rspec \\./)"
+  - action: "head"
+    n: 10
+
+on_error: "passthrough"
