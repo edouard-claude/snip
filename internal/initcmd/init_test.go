@@ -3,7 +3,9 @@ package initcmd
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -191,6 +193,55 @@ func TestUnpatchPreservesOtherHooks(t *testing.T) {
 	remaining := preToolUse[0].(map[string]any)
 	if remaining["matcher"] != "Write" {
 		t.Errorf("remaining matcher = %v, want Write", remaining["matcher"])
+	}
+}
+
+// TestHookScriptMultilineCommand verifies that the installed hook script handles
+// multiline commands (e.g. git commit with a heredoc) without error.
+// Previously, xargs was used to trim whitespace from FIRST_CMD and would fail
+// with exit 1 on unmatched quotes present in heredoc body lines.
+func TestHookScriptMultilineCommand(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash not available")
+	}
+	if _, err := exec.LookPath("jq"); err != nil {
+		t.Skip("jq not available")
+	}
+
+	// Write the hook to a temp file (simulates snip init).
+	dir := t.TempDir()
+	hookPath := filepath.Join(dir, "snip-rewrite.sh")
+	if err := os.WriteFile(hookPath, []byte(hookScript), 0755); err != nil {
+		t.Fatalf("write hook: %v", err)
+	}
+
+	// Simulate the JSON Claude Code sends for a heredoc-style git commit.
+	// The multiline command contains an unmatched `)"` on the last line,
+	// which caused xargs to exit 1 (unmatched double quote).
+	cmd := "git add file.go && git commit -m \"$(cat <<'EOF'\n   fix: something\n\n   Co-Authored-By: Bot <bot@example.com>\n   EOF\n   )\""
+	payload, _ := json.Marshal(map[string]any{
+		"tool_name":  "Bash",
+		"tool_input": map[string]any{"command": cmd},
+	})
+
+	proc := exec.Command("bash", hookPath)
+	proc.Stdin = strings.NewReader(string(payload))
+	output, runErr := proc.Output()
+	if runErr != nil {
+		t.Fatalf("hook exited non-zero: %v", runErr)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(output, &result); err != nil {
+		t.Fatalf("hook output is not valid JSON: %v\noutput: %s", err, output)
+	}
+
+	hookOut, _ := result["hookSpecificOutput"].(map[string]any)
+	updated, _ := hookOut["updatedInput"].(map[string]any)
+	rewritten, _ := updated["command"].(string)
+
+	if !strings.HasPrefix(rewritten, "snip git add ") {
+		t.Errorf("expected rewritten command to start with 'snip git add', got: %s", rewritten)
 	}
 }
 

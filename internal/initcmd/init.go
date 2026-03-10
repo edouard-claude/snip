@@ -31,7 +31,8 @@ if [ -z "$CMD" ]; then
 fi
 
 # Extract the first command (before && or | or ;)
-FIRST_CMD=$(echo "$CMD" | sed 's/[;&|].*//' | xargs)
+# head -1 prevents xargs from seeing heredoc body lines with unmatched quotes
+FIRST_CMD=$(echo "$CMD" | head -1 | sed 's/[;&|].*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
 # Skip if already using snip
 case "$FIRST_CMD" in
