@@ -42,6 +42,8 @@ func ParseFlags(args []string) (Flags, []string) {
 			flags.Help = true
 		case isStackedVerboseFlag(arg):
 			flags.Verbose = strings.Count(arg, "v")
+		case len(remaining) == 0 && isBuiltInCommand(arg) && i+1 < len(args) && isInfoFlag(args[i+1]):
+			remaining = append(remaining, arg)
 		default:
 			// Non-flag argument: keep it for the underlying command,
 			// but continue scanning for global flags (help/version/etc.)
@@ -60,4 +62,17 @@ func isStackedVerboseFlag(arg string) bool {
 	}
 	trimmed := strings.TrimLeft(arg, "-")
 	return len(trimmed) > 0 && strings.Trim(trimmed, "v") == ""
+}
+
+func isBuiltInCommand(arg string) bool {
+	switch arg {
+	case "init", "gain", "config", "proxy":
+		return true
+	default:
+		return false
+	}
+}
+
+func isInfoFlag(arg string) bool {
+	return arg == "--help" || arg == "-h" || arg == "--version"
 }
