@@ -13,11 +13,13 @@ import (
 
 // Pipeline orchestrates command execution, filtering, tracking, and tee.
 type Pipeline struct {
-	Registry     *filter.Registry
-	Tracker      *tracking.Tracker
-	TeeConfig    tee.Config
-	Verbose      int
-	UltraCompact bool
+	Registry      *filter.Registry
+	Tracker       *tracking.Tracker
+	TeeConfig     tee.Config
+	Verbose       int
+	UltraCompact  bool
+	QuietNoFilter bool
+	FilterEnabled map[string]bool
 }
 
 // Run executes a command through the full pipeline.
@@ -35,74 +37,68 @@ func (p *Pipeline) Run(command string, args []string) int {
 
 	// No filter found: passthrough with hint so LLMs know snip is unnecessary
 	if f == nil {
-		fmt.Fprintf(os.Stderr, "snip: no filter for %q, passing through — you can run %q directly\n", command, command)
-		return p.Passthrough(command, args)
-	}
-
-	// Compute injected args
-	fullArgs := args
-	finalArgs := args
-	if injected, ok := p.Registry.ShouldInject(f, args); ok {
-		finalArgs = injected
-	}
-
-	// Start SQLite init concurrently with command execution
-	if p.Tracker != nil {
-		p.Tracker.WarmUp()
-	}
-
-	// Start timing
-	timed := tracking.Start(p.Tracker)
-
-	// Execute command
-	result, err := Execute(command, finalArgs)
-	if err != nil {
-		// Execution failed entirely — fallback to passthrough
-		if p.Verbose > 0 {
-			fmt.Fprintf(os.Stderr, "snip: execute error: %v\n", err)
+		if !p.QuietNoFilter {
+			fmt.Fprintf(os.Stderr, "snip: no filter for %q, passing through — you can run %q directly\n", command, command)
 		}
-		code, _ := Passthrough(command, fullArgs)
+		code, _ := Passthrough(command, args)
 		return code
 	}
 
-	// Build pipeline input from selected streams
-	pipelineInput := buildPipelineInput(f, result)
+	// Check if filter is disabled in configuration
+	if !p.isFilterEnabled(f.Name) {
+		if !p.QuietNoFilter {
+			fmt.Fprintf(os.Stderr, "snip: no filter for %q, passing through — you can run %q directly\n", command, command)
+		}
+		code, _ := Passthrough(command, args)
+		return code
+	}
+
+	// Execute command with filtering
+	result, err := Execute(command, args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "snip: %v\n", err)
+		return 1
+	}
+
+	// Build input for pipeline based on filter's stream configuration
+	input := buildPipelineInput(f, result)
 
 	// Apply filter pipeline
-	filtered, filterErr := ApplyPipeline(f, pipelineInput)
-	if filterErr != nil {
-		// Graceful degradation: use raw output
-		if p.Verbose > 0 {
-			fmt.Fprintf(os.Stderr, "snip: filter error: %v\n", filterErr)
-		}
-		filtered = pipelineInput
+	output, err := ApplyPipeline(f, input)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "snip: filter error: %v\n", err)
+		fmt.Fprint(os.Stdout, input) // Fallback to raw output
+		return result.ExitCode
 	}
 
-	// Tee: save raw output if needed
-	hint := tee.MaybeSave(pipelineInput, result.ExitCode, command, p.TeeConfig)
+	// Print filtered output
+	fmt.Fprint(os.Stdout, output)
 
-	// Print output
-	fmt.Print(filtered)
-	if hint != "" {
-		fmt.Fprintln(os.Stderr, hint)
-	}
-	// Only re-emit stderr if it was not included in the filtered streams
-	if result.Stderr != "" && !f.HasStream("stderr") {
-		fmt.Fprint(os.Stderr, result.Stderr)
-	}
-
-	// Track (skip if no input — nothing meaningful to measure)
-	inputTokens := utils.EstimateTokens(pipelineInput)
-	if inputTokens > 0 {
-		originalCmd := command + " " + strings.Join(fullArgs, " ")
-		snipCmd := command + " " + strings.Join(finalArgs, " ")
-		outputTokens := utils.EstimateTokens(filtered)
-		if err := timed.Track(originalCmd, snipCmd, inputTokens, outputTokens); err != nil {
-			fmt.Fprintf(os.Stderr, "snip: tracking error: %v\n", err)
+	// Track token savings if tracking is enabled
+	if p.Tracker != nil {
+		beforeTokens := utils.EstimateTokens(input)
+		afterTokens := utils.EstimateTokens(output)
+		if beforeTokens > afterTokens {
+			_ = p.Tracker.Track(command, f.Name, beforeTokens, afterTokens, result.Duration.Milliseconds())
 		}
 	}
+
+	// Handle tee (save raw output on failure)
+	_ = tee.MaybeSave(input, result.ExitCode, command, p.TeeConfig)
 
 	return result.ExitCode
+}
+
+// isFilterEnabled checks if a filter is enabled in the configuration
+func (p *Pipeline) isFilterEnabled(name string) bool {
+	if p.FilterEnabled == nil {
+		return true
+	}
+	enabled, exists := p.FilterEnabled[name]
+	if !exists {
+		return true
+	}
+	return enabled
 }
 
 // Passthrough runs a command directly without filtering.
@@ -110,7 +106,7 @@ func (p *Pipeline) Run(command string, args []string) int {
 // to stdout — snip never captures it, so token counts would be 0/0.
 func (p *Pipeline) Passthrough(command string, args []string) int {
 	code, err := Passthrough(command, args)
-	if err != nil {
+	if err != nil && !p.QuietNoFilter {
 		fmt.Fprintf(os.Stderr, "snip: %v\n", err)
 		return 1
 	}

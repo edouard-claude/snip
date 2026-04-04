@@ -19,12 +19,14 @@ type TrackingConfig struct {
 }
 
 type DisplayConfig struct {
-	Color bool `toml:"color"`
-	Emoji bool `toml:"emoji"`
+	Color          bool `toml:"color"`
+	Emoji          bool `toml:"emoji"`
+	QuietNoFilter  bool `toml:"quiet_no_filter"`
 }
 
 type FiltersConfig struct {
-	Dir string `toml:"dir"`
+	Dir    string          `toml:"dir"`
+	Enable map[string]bool `toml:"enable"`
 }
 
 type TeeConfig struct {
@@ -73,8 +75,25 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
+	// Check if [filters.enable] section exists in TOML
+	hasEnableSection := false
+	var rawConfig map[string]any
+	if err := toml.Unmarshal(data, &rawConfig); err != nil {
+		return nil, err
+	}
+	if filters, ok := rawConfig["filters"].(map[string]any); ok {
+		if _, hasEnable := filters["enable"]; hasEnable {
+			hasEnableSection = true
+		}
+	}
+
 	if err := toml.Unmarshal(data, cfg); err != nil {
 		return nil, err
+	}
+
+	// If [filters.enable] section exists but is empty, initialize the map
+	if hasEnableSection && cfg.Filters.Enable == nil {
+		cfg.Filters.Enable = make(map[string]bool)
 	}
 
 	return cfg, nil

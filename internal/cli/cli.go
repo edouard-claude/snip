@@ -88,6 +88,8 @@ func Run(args []string) int {
 		fmt.Printf("tee.max_files: %d\n", cfg.Tee.MaxFiles)
 		fmt.Printf("display.color: %v\n", cfg.Display.Color)
 		fmt.Printf("display.emoji: %v\n", cfg.Display.Emoji)
+		fmt.Printf("display.quiet_no_filter: %v\n", cfg.Display.QuietNoFilter)
+		fmt.Printf("filters.enable: %v\n", cfg.Filters.Enable)
 		return 0
 
 	case "proxy":
@@ -136,11 +138,13 @@ func runPipeline(command string, args []string, flags Flags) int {
 	teeCfg.MaxFileSize = cfg.Tee.MaxFileSize
 
 	pipeline := &engine.Pipeline{
-		Registry:     registry,
-		Tracker:      tracker,
-		TeeConfig:    teeCfg,
-		Verbose:      flags.Verbose,
-		UltraCompact: flags.UltraCompact,
+		Registry:      registry,
+		Tracker:       tracker,
+		TeeConfig:     teeCfg,
+		Verbose:       flags.Verbose,
+		UltraCompact:  flags.UltraCompact,
+		QuietNoFilter: cfg.Display.QuietNoFilter,
+		FilterEnabled: cfg.Filters.Enable,
 	}
 
 	return pipeline.Run(command, args)

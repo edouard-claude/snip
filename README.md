@@ -298,9 +298,14 @@ db_path = "~/.local/share/snip/tracking.db"
 [display]
 color = true
 emoji = true
+quiet_no_filter = false  # suppress "no filter" passthrough messages
 
 [filters]
 dir = "~/.config/snip/filters"
+
+[filters.enable]
+# Disable specific filters by name. Unlisted filters default to enabled.
+# git-diff = false
 
 [tee]
 enabled = true
