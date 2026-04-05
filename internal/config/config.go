@@ -19,12 +19,14 @@ type TrackingConfig struct {
 }
 
 type DisplayConfig struct {
-	Color bool `toml:"color"`
-	Emoji bool `toml:"emoji"`
+	Color         bool `toml:"color"`
+	Emoji         bool `toml:"emoji"`
+	QuietNoFilter bool `toml:"quiet_no_filter"`
 }
 
 type FiltersConfig struct {
-	Dir string `toml:"dir"`
+	Dir    string          `toml:"dir"`
+	Enable map[string]bool `toml:"enable"`
 }
 
 type TeeConfig struct {

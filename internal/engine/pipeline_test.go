@@ -91,6 +91,40 @@ func TestApplyPipelineGracefulDegradation(t *testing.T) {
 	}
 }
 
+func TestIsFilterEnabledNilMap(t *testing.T) {
+	p := &Pipeline{FilterEnabled: nil}
+	for _, name := range []string{"git-diff", "git-status", "unknown"} {
+		if !p.isFilterEnabled(name) {
+			t.Errorf("nil map: expected %q enabled", name)
+		}
+	}
+}
+
+func TestIsFilterEnabledExplicit(t *testing.T) {
+	p := &Pipeline{FilterEnabled: map[string]bool{
+		"git-diff":   false,
+		"git-status": true,
+	}}
+	if p.isFilterEnabled("git-diff") {
+		t.Error("expected git-diff disabled")
+	}
+	if !p.isFilterEnabled("git-status") {
+		t.Error("expected git-status enabled")
+	}
+	if !p.isFilterEnabled("unknown") {
+		t.Error("expected unlisted filter enabled by default")
+	}
+}
+
+func TestIsFilterEnabledEmptyMap(t *testing.T) {
+	p := &Pipeline{FilterEnabled: map[string]bool{}}
+	for _, name := range []string{"git-diff", "git-status", "unknown"} {
+		if !p.isFilterEnabled(name) {
+			t.Errorf("empty map: expected %q enabled", name)
+		}
+	}
+}
+
 func TestBuildPipelineInputDefault(t *testing.T) {
 	f := &filter.Filter{Name: "test"}
 	r := &Result{Stdout: "out\n", Stderr: "err\n"}

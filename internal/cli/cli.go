@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/edouard-claude/snip/internal/config"
@@ -88,6 +89,19 @@ func Run(args []string) int {
 		fmt.Printf("tee.max_files: %d\n", cfg.Tee.MaxFiles)
 		fmt.Printf("display.color: %v\n", cfg.Display.Color)
 		fmt.Printf("display.emoji: %v\n", cfg.Display.Emoji)
+		fmt.Printf("display.quiet_no_filter: %v\n", cfg.Display.QuietNoFilter)
+		if len(cfg.Filters.Enable) == 0 {
+			fmt.Println("filters.enable: (all enabled)")
+		} else {
+			names := make([]string, 0, len(cfg.Filters.Enable))
+			for k := range cfg.Filters.Enable {
+				names = append(names, k)
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				fmt.Printf("filters.enable.%s: %v\n", name, cfg.Filters.Enable[name])
+			}
+		}
 		return 0
 
 	case "proxy":
@@ -136,11 +150,13 @@ func runPipeline(command string, args []string, flags Flags) int {
 	teeCfg.MaxFileSize = cfg.Tee.MaxFileSize
 
 	pipeline := &engine.Pipeline{
-		Registry:     registry,
-		Tracker:      tracker,
-		TeeConfig:    teeCfg,
-		Verbose:      flags.Verbose,
-		UltraCompact: flags.UltraCompact,
+		Registry:      registry,
+		Tracker:       tracker,
+		TeeConfig:     teeCfg,
+		Verbose:       flags.Verbose,
+		UltraCompact:  flags.UltraCompact,
+		QuietNoFilter: cfg.Display.QuietNoFilter,
+		FilterEnabled: cfg.Filters.Enable,
 	}
 
 	return pipeline.Run(command, args)

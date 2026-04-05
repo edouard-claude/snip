@@ -13,11 +13,13 @@ import (
 
 // Pipeline orchestrates command execution, filtering, tracking, and tee.
 type Pipeline struct {
-	Registry     *filter.Registry
-	Tracker      *tracking.Tracker
-	TeeConfig    tee.Config
-	Verbose      int
-	UltraCompact bool
+	Registry      *filter.Registry
+	Tracker       *tracking.Tracker
+	TeeConfig     tee.Config
+	Verbose       int
+	UltraCompact  bool
+	QuietNoFilter bool
+	FilterEnabled map[string]bool
 }
 
 // Run executes a command through the full pipeline.
@@ -35,7 +37,17 @@ func (p *Pipeline) Run(command string, args []string) int {
 
 	// No filter found: passthrough with hint so LLMs know snip is unnecessary
 	if f == nil {
-		fmt.Fprintf(os.Stderr, "snip: no filter for %q, passing through — you can run %q directly\n", command, command)
+		if !p.QuietNoFilter {
+			fmt.Fprintf(os.Stderr, "snip: no filter for %q, passing through -- you can run %q directly\n", command, command)
+		}
+		return p.Passthrough(command, args)
+	}
+
+	// Filter disabled via config: treat as no filter
+	if !p.isFilterEnabled(f.Name) {
+		if !p.QuietNoFilter {
+			fmt.Fprintf(os.Stderr, "snip: filter %q disabled, passing through\n", f.Name)
+		}
 		return p.Passthrough(command, args)
 	}
 
@@ -116,6 +128,19 @@ func (p *Pipeline) Passthrough(command string, args []string) int {
 	}
 
 	return code
+}
+
+// isFilterEnabled returns whether a filter is enabled. A nil map means all
+// enabled; a missing entry defaults to enabled; only explicit false disables.
+func (p *Pipeline) isFilterEnabled(name string) bool {
+	if p.FilterEnabled == nil {
+		return true
+	}
+	enabled, ok := p.FilterEnabled[name]
+	if !ok {
+		return true
+	}
+	return enabled
 }
 
 // ApplyPipeline executes filter actions sequentially.
