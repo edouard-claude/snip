@@ -8,15 +8,18 @@ import (
 	"strings"
 )
 
-// hookScript reads JSON from stdin (Claude Code PreToolUse protocol),
-// rewrites supported commands through snip, and returns updatedInput JSON.
-// Requires jq. Falls back silently (exit 0) if snip or jq are missing.
-const hookScript = `#!/bin/bash
+// generateHookScript returns the snip-rewrite.sh content with the absolute
+// path of the snip binary embedded, so the hook works regardless of $PATH.
+func generateHookScript(snipBin string) string {
+	return `#!/bin/bash
 # snip — CLI Token Killer hook for Claude Code
 # PreToolUse hook: reads JSON from stdin, rewrites command through snip
 
+SNIP_BIN="` + snipBin + `"
+
 # Graceful degradation: if snip or jq are missing, allow original command
-if ! command -v snip &>/dev/null || ! command -v jq &>/dev/null; then
+if ! command -v "$SNIP_BIN" &>/dev/null || ! command -v jq &>/dev/null; then
+  echo "snip: invalid setup — binary not found at $SNIP_BIN" >&2
   exit 0
 fi
 
@@ -119,9 +122,9 @@ FIRST_SUFFIX_START=$((LEADING_WS_LEN + FIRST_CMD_LEN))
 FIRST_SUFFIX="${FIRST_SEGMENT:FIRST_SUFFIX_START}"
 
 # Skip if already using snip
-case "$FIRST_CMD" in
-  snip\ *|*/snip\ *) exit 0 ;;
-esac
+if [ "$FIRST_CMD" = "$SNIP_BIN" ]; then
+  exit 0
+fi
 
 # Strip leading env var assignments (e.g. CGO_ENABLED=0 go test)
 ENV_PREFIX=$(printf '%s' "$FIRST_CMD" | sed -E 's/^(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]+[[:space:]]*)*).*/\1/')
@@ -134,11 +137,11 @@ BASE=$(echo "$BARE_CMD" | awk '{print $1}')
 REWRITE=""
 case "$BASE" in
   git|go|cargo|npm|npx|yarn|pnpm|docker|kubectl|make|pip|pytest|jest|tsc|eslint|rustc)
-    # Rewrite: prefix with "snip --" so flags like --help or --version in the
+    # Rewrite: prefix with "$SNIP_BIN --" so flags like --help or --version in the
     # original command are passed verbatim to the underlying tool, not parsed
     # by snip itself.
     REST="${CMD:${#FIRST_SEGMENT}}"
-    REWRITE="${FIRST_PREFIX}${ENV_PREFIX}snip -- ${BARE_CMD}${FIRST_SUFFIX}${REST}"
+    REWRITE="${FIRST_PREFIX}${ENV_PREFIX}\"$SNIP_BIN\" -- ${BARE_CMD}${FIRST_SUFFIX}${REST}"
     ;;
 esac
 
@@ -163,6 +166,7 @@ jq -n \
     }
   }'
 `
+}
 
 const hookIdentifier = "snip-rewrite.sh"
 
@@ -179,6 +183,18 @@ func Run(args []string) error {
 		return fmt.Errorf("get home dir: %w", err)
 	}
 
+	// Resolve the absolute path of the running snip binary so the hook script
+	// can call it directly without relying on $PATH.
+	snipBin, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("resolve executable: %w", err)
+	}
+	snipBin, err = filepath.EvalSymlinks(snipBin)
+	if err != nil {
+		return fmt.Errorf("eval symlinks: %w", err)
+	}
+	snipBin = filepath.ToSlash(snipBin)
+
 	// 1. Create filter directory
 	filterDir := filepath.Join(home, ".config", "snip", "filters")
 	if err := os.MkdirAll(filterDir, 0755); err != nil {
@@ -192,7 +208,7 @@ func Run(args []string) error {
 	}
 
 	hookPath := filepath.Join(hookDir, hookIdentifier)
-	if err := os.WriteFile(hookPath, []byte(hookScript), 0755); err != nil {
+	if err := os.WriteFile(hookPath, []byte(generateHookScript(snipBin)), 0755); err != nil {
 		return fmt.Errorf("write hook: %w", err)
 	}
 
@@ -251,10 +267,12 @@ func patchSettings(path, hookPath string) error {
 		}
 	}
 
-	// Build the hook entry
+	// Build the hook entry — normalize to forward slashes for bash on all platforms.
+	// strings.ReplaceAll is used instead of filepath.ToSlash because the latter
+	// only replaces the OS separator, leaving backslashes intact on Linux/macOS.
 	snipHookEntry := map[string]any{
 		"type":    "command",
-		"command": hookPath,
+		"command": strings.ReplaceAll(hookPath, `\`, `/`),
 	}
 
 	snipMatcher := map[string]any{

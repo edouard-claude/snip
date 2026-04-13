@@ -207,13 +207,13 @@ func runHookScript(t *testing.T, cmd string) string {
 	}
 
 	dir := t.TempDir()
-	hookPath := filepath.Join(dir, "snip-rewrite.sh")
-	if err := os.WriteFile(hookPath, []byte(hookScript), 0755); err != nil {
-		t.Fatalf("write hook: %v", err)
-	}
 	snipPath := filepath.Join(dir, "snip")
 	if err := os.WriteFile(snipPath, []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
 		t.Fatalf("write fake snip: %v", err)
+	}
+	hookPath := filepath.Join(dir, "snip-rewrite.sh")
+	if err := os.WriteFile(hookPath, []byte(generateHookScript(snipPath)), 0755); err != nil {
+		t.Fatalf("write hook: %v", err)
 	}
 
 	payload, _ := json.Marshal(map[string]any{
@@ -271,6 +271,59 @@ func TestHookScriptInlinePythonDoesNotRewriteQuotedSemicolons(t *testing.T) {
 	}
 	if strings.Contains(rewritten, "python3 snip") {
 		t.Fatalf("expected inline python command to stay unchanged, got: %s", rewritten)
+	}
+}
+
+// TestPatchSettingsWindowsPath verifies that patchSettings normalizes backslashes
+// to forward slashes in the hook command path written to settings.json, so the
+// path is valid for bash on all platforms including Windows.
+func TestPatchSettingsWindowsPath(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.json")
+	// Simulate a Windows-style backslash path
+	hookPath := `C:\Users\joedoe\.claude\hooks\snip-rewrite.sh`
+
+	err := patchSettings(path, hookPath)
+	if err != nil {
+		t.Fatalf("patch: %v", err)
+	}
+
+	settings := readSettings(t, path)
+	hooks := settings["hooks"].(map[string]any)
+	preToolUse := hooks["PreToolUse"].([]any)
+	entry := preToolUse[0].(map[string]any)
+	entryHooks := entry["hooks"].([]any)
+	hook := entryHooks[0].(map[string]any)
+	cmd := hook["command"].(string)
+
+	if strings.Contains(cmd, `\`) {
+		t.Errorf("command should not contain backslashes, got: %s", cmd)
+	}
+	if !strings.Contains(cmd, "/") {
+		t.Errorf("command should contain forward slashes, got: %s", cmd)
+	}
+}
+
+// TestGenerateHookScriptEmbedsBin verifies that generateHookScript embeds the
+// absolute snip binary path as SNIP_BIN in the generated script, and does not
+// reference bare "snip" as a command so the hook works regardless of $PATH.
+func TestGenerateHookScriptEmbedsBin(t *testing.T) {
+	snipBin := "/usr/local/bin/snip"
+	script := generateHookScript(snipBin)
+
+	if !strings.Contains(script, `SNIP_BIN="/usr/local/bin/snip"`) {
+		t.Errorf("script should contain SNIP_BIN variable with path, got script:\n%s", script)
+	}
+
+	// Should not call bare 'snip' as a command (outside of comments)
+	for _, line := range strings.Split(script, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "snip ") || trimmed == "snip" {
+			t.Errorf("script should not reference bare 'snip' command, found line: %s", line)
+		}
 	}
 }
 
