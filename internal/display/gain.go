@@ -25,6 +25,7 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 		showJSON    bool
 		showCSV     bool
 		showTop     bool
+		noTruncate  bool
 		historyN    int
 		topN        int
 		days        = 7
@@ -59,6 +60,8 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 			if historyN <= 0 {
 				historyN = 10
 			}
+		case "--nocommand-truncate":
+			noTruncate = true
 		}
 	}
 
@@ -75,12 +78,12 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 	}
 
 	if historyN > 0 {
-		return showHistory(tracker, historyN)
+		return showHistory(tracker, historyN, noTruncate)
 	}
 
 	if showTop {
 		printSummary(summary)
-		return showByCommand(tracker, topN)
+		return showByCommand(tracker, topN, noTruncate)
 	}
 
 	if showWeekly {
@@ -100,7 +103,7 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 	// Default: full dashboard (summary + sparkline + top commands)
 	printSummary(summary)
 	showSparkline(tracker)
-	_ = showByCommand(tracker, 10)
+	_ = showByCommand(tracker, 10, noTruncate)
 	return nil
 }
 
@@ -156,7 +159,17 @@ func printSummary(s *tracking.Summary) {
 	fmt.Println()
 }
 
-func showByCommand(tracker *tracking.Tracker, limit int) error {
+// cmdColWidth returns the Command column truncation width given terminal width
+// and the total width consumed by all other columns + separators.
+func cmdColWidth(termWidth, fixedWidth int) int {
+	w := termWidth - fixedWidth
+	if w < 20 {
+		return 20
+	}
+	return w
+}
+
+func showByCommand(tracker *tracking.Tracker, limit int, noTruncate bool) error {
 	stats, err := tracker.GetByCommand(limit)
 	if err != nil {
 		return err
@@ -185,10 +198,12 @@ func showByCommand(tracker *tracking.Tracker, limit int) error {
 
 	headers := []string{"Command", "Runs", "Saved", "Savings", "Impact"}
 	var rows [][]string
+	// Fixed columns: Runs(4) + Saved(5) + Savings(7) + Impact(12) + 4×sep(8) = 36
+	maxCmd := cmdColWidth(TerminalWidth(), 36)
 	for _, s := range stats {
 		cmd := s.Command
-		if len(cmd) > 25 {
-			cmd = cmd[:22] + "..."
+		if !noTruncate && len(cmd) > maxCmd {
+			cmd = cmd[:maxCmd-3] + "..."
 		}
 		bar := ColorBar(s.SavedTokens, maxSaved, 12)
 		rows = append(rows, []string{
@@ -298,7 +313,7 @@ func showPeriodReport(tracker *tracking.Tracker, period string) error {
 	return nil
 }
 
-func showHistory(tracker *tracking.Tracker, n int) error {
+func showHistory(tracker *tracking.Tracker, n int, noTruncate bool) error {
 	records, err := tracker.GetRecent(n)
 	if err != nil {
 		return err
@@ -306,10 +321,12 @@ func showHistory(tracker *tracking.Tracker, n int) error {
 
 	headers := []string{"Command", "Input", "Output", "Saved", "Time"}
 	var rows [][]string
+	// Fixed columns: Input(6) + Output(6) + Saved(6) + Time(6) + 4×sep(8) = 32
+	maxCmd := cmdColWidth(TerminalWidth(), 32)
 	for _, r := range records {
 		cmd := r.OriginalCmd
-		if len(cmd) > 30 {
-			cmd = cmd[:27] + "..."
+		if !noTruncate && len(cmd) > maxCmd {
+			cmd = cmd[:maxCmd-3] + "..."
 		}
 		rows = append(rows, []string{
 			cmd,

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/term"
 	"github.com/mattn/go-isatty"
 )
 
@@ -24,6 +25,15 @@ var (
 // IsTerminal returns true if stdout is a TTY.
 func IsTerminal() bool {
 	return isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+}
+
+// TerminalWidth returns the current terminal width, or 80 if unavailable.
+func TerminalWidth() int {
+	w, _, err := term.GetSize(os.Stdout.Fd())
+	if err != nil || w <= 0 {
+		return 80
+	}
+	return w
 }
 
 // PrintFiltered prints filtered output with optional verbosity header.
