@@ -60,7 +60,7 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 			if historyN <= 0 {
 				historyN = 10
 			}
-		case "--nocommand-truncate":
+		case "--no-truncate":
 			noTruncate = true
 		}
 	}

@@ -225,7 +225,7 @@ snip gain --weekly          # weekly breakdown
 snip gain --monthly         # monthly breakdown
 snip gain --top 10          # top N commands by tokens saved
 snip gain --history 20      # last 20 commands
-snip gain --nocommand-truncate  # disable command truncation
+snip gain --no-truncate     # disable command truncation
 snip gain --json            # machine-readable output
 snip gain --csv             # CSV export
 snip -v <command>           # verbose mode (show filter details)

@@ -229,7 +229,7 @@ Examples:
   snip gain --monthly
   snip gain --top 10
   snip gain --history 20
-  snip gain --nocommand-truncate
+  snip gain --no-truncate
   snip init
 `
 	fmt.Printf(usage, version)
