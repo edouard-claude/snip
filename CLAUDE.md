@@ -15,13 +15,14 @@ The binary (snip) is the engine. Filters are data files. The two evolve independ
 ```
 cmd/snip/main.go        # Entry point
 embed.go                # Embedded default filters (go:embed)
-filters/*.yaml          # Declarative filter definitions (MVP: 5 filters)
+filters/*.yaml          # Declarative filter definitions (22 filters)
 internal/
   cli/                  # CLI routing, flag parsing
   config/               # TOML config loading (~/.config/snip/config.toml)
   display/              # Lipgloss terminal styling, gain report
   engine/               # Command execution (goroutines), pipeline orchestration
   filter/               # DSL types, 16 built-in actions, YAML parser, registry
+  hook/                 # Claude Code PreToolUse hook handler (native Go, no bash/jq)
   initcmd/              # Claude Code hook installation
   tracking/             # SQLite token tracking (pure Go, no CGO)
   tee/                  # Raw output recovery on failure
@@ -33,7 +34,7 @@ tests/fixtures/         # Test fixtures for integration tests
 
 ### Core Loop
 
-1. Intercept command via Claude Code PreToolUse hook
+1. Intercept command via `snip hook` (Claude Code PreToolUse, native Go)
 2. Route to matching filter (O(1) registry lookup)
 3. Execute original command, capture stdout/stderr via goroutines
 4. Apply declarative filter pipeline (regex-based: keep/remove lines, reformat, template)
@@ -63,6 +64,7 @@ goreleaser release --snapshot --clean          # Test release build locally
 ## Design Constraints
 
 - **Startup < 10ms** — snip intercepts every shell command; latency is critical
+- **Hook path is fast** — `snip hook` loads filters + registry only (no SQLite, no tracking)
 - **SQLite init cost** — `modernc.org/sqlite` `init()` adds ~3.4ms; use `NewLazyTracker` + `WarmUp()` to overlap with command execution
 - **Graceful degradation** — if a filter fails, fall back to raw command output
 - **Exit code preservation** — always propagate the underlying tool's exit code
@@ -115,3 +117,4 @@ git tag -a v0.1.1 -m "fix: description" && git push origin v0.1.1
 - Direct communication style — no hedging, state facts and solutions
 - TDD workflow: write test first, implement, refactor
 - Use context wrapping on errors: `fmt.Errorf("operation: %w", err)`
+- When adding a new built-in subcommand: add it to both the `switch` in `cli.go` AND `isBuiltInCommand` in `flags.go`
