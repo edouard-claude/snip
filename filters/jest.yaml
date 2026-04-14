@@ -1,0 +1,13 @@
+name: "jest"
+version: 1
+description: "Basic jest output filtering"
+
+match:
+  command: "jest"
+
+pipeline:
+  - action: "strip_ansi"
+  - action: "truncate_lines"
+    max_length: 200
+
+on_error: "passthrough"

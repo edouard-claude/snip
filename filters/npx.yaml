@@ -1,0 +1,13 @@
+name: "npx"
+version: 1
+description: "Basic npx output filtering"
+
+match:
+  command: "npx"
+
+pipeline:
+  - action: "strip_ansi"
+  - action: "truncate_lines"
+    max_length: 200
+
+on_error: "passthrough"

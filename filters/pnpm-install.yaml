@@ -1,0 +1,13 @@
+name: "pnpm-install"
+version: 1
+description: "Basic pnpm output filtering"
+
+match:
+  command: "pnpm"
+
+pipeline:
+  - action: "strip_ansi"
+  - action: "truncate_lines"
+    max_length: 200
+
+on_error: "passthrough"

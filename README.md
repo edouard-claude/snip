@@ -132,7 +132,7 @@ git clone https://github.com/edouard-claude/snip.git
 cd snip && make install
 ```
 
-Requires Go 1.24+ and `jq` (for the hook script).
+Requires Go 1.24+.
 
 ## Supported AI Tools
 
@@ -173,7 +173,7 @@ Cursor supports hooks since v1.7 via `~/.cursor/hooks.json`:
   "version": 1,
   "hooks": {
     "beforeShellExecution": [
-      { "command": "~/.claude/hooks/snip-rewrite.sh" }
+      { "command": "snip hook" }
     ]
   }
 }

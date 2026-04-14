@@ -94,6 +94,37 @@ func TestRegistryMatchRequireFlags(t *testing.T) {
 	}
 }
 
+func TestRegistryCommands(t *testing.T) {
+	filters := []Filter{
+		makeFilter("git-log", "git", "log"),
+		makeFilter("git-status", "git", "status"),
+		makeFilter("go-test", "go", "test"),
+		makeFilter("npm-install", "npm", ""),
+		makeFilter("docker-build", "docker", "build"),
+	}
+	reg := NewRegistry(filters)
+
+	got := reg.Commands()
+	want := []string{"docker", "git", "go", "npm"}
+
+	if len(got) != len(want) {
+		t.Fatalf("Commands() = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("Commands()[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestRegistryCommandsEmpty(t *testing.T) {
+	reg := NewRegistry(nil)
+	got := reg.Commands()
+	if len(got) != 0 {
+		t.Errorf("Commands() on empty registry = %v, want empty", got)
+	}
+}
+
 func TestShouldInject(t *testing.T) {
 	f := Filter{
 		Name: "git-log",

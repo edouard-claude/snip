@@ -6,10 +6,13 @@ import (
 	"sort"
 	"strings"
 
+	"path/filepath"
+
 	"github.com/edouard-claude/snip/internal/config"
 	"github.com/edouard-claude/snip/internal/display"
 	"github.com/edouard-claude/snip/internal/engine"
 	"github.com/edouard-claude/snip/internal/filter"
+	"github.com/edouard-claude/snip/internal/hook"
 	"github.com/edouard-claude/snip/internal/initcmd"
 	"github.com/edouard-claude/snip/internal/tee"
 	"github.com/edouard-claude/snip/internal/tracking"
@@ -48,6 +51,9 @@ func Run(args []string) int {
 
 	// Built-in commands
 	switch command {
+	case "hook":
+		return runHook()
+
 	case "init":
 		if err := initcmd.Run(cmdArgs); err != nil {
 			display.PrintError(err.Error())
@@ -118,6 +124,39 @@ func Run(args []string) int {
 	return runPipeline(command, cmdArgs, flags)
 }
 
+// runHook handles the "snip hook" subcommand for Claude Code PreToolUse.
+// Always returns 0 (graceful degradation).
+func runHook() int {
+	snipBin, err := os.Executable()
+	if err != nil {
+		return 0
+	}
+	snipBin, err = filepath.EvalSymlinks(snipBin)
+	if err != nil {
+		return 0
+	}
+	snipBin, err = filepath.Abs(snipBin)
+	if err != nil {
+		return 0
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		cfg = config.DefaultConfig()
+	}
+
+	filters, err := filter.LoadAll(cfg.Filters.Dirs())
+	if err != nil {
+		return 0
+	}
+
+	registry := filter.NewRegistry(filters)
+	commands := registry.Commands()
+
+	_ = hook.Run(os.Stdin, os.Stdout, commands, snipBin)
+	return 0
+}
+
 func runPipeline(command string, args []string, flags Flags) int {
 	cfg, err := config.Load()
 	if err != nil {
@@ -170,6 +209,7 @@ Usage: snip [flags] <command> [args...]
 Commands:
   <command>    Run command through snip filter pipeline
   init         Install Claude Code hook
+  hook         Handle Claude Code PreToolUse hook
   gain         Show token savings report
   config       Show current configuration
   proxy        Passthrough without filtering

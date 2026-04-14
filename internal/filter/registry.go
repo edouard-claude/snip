@@ -1,6 +1,9 @@
 package filter
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // Registry holds loaded filters indexed for fast command matching.
 type Registry struct {
@@ -98,6 +101,22 @@ func (r *Registry) ShouldInject(f *Filter, args []string) ([]string, bool) {
 	}
 
 	return result, true
+}
+
+// Commands returns a sorted, unique list of base command names in the registry.
+// Keys like "git:log" are split on ":" and only the base command "git" is kept.
+func (r *Registry) Commands() []string {
+	seen := make(map[string]struct{})
+	for key := range r.byKey {
+		base, _, _ := strings.Cut(key, ":")
+		seen[base] = struct{}{}
+	}
+	cmds := make([]string, 0, len(seen))
+	for cmd := range seen {
+		cmds = append(cmds, cmd)
+	}
+	sort.Strings(cmds)
+	return cmds
 }
 
 func matchesFlags(f *Filter, args []string) bool {

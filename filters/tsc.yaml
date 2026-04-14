@@ -1,0 +1,13 @@
+name: "tsc"
+version: 1
+description: "Basic tsc output filtering"
+
+match:
+  command: "tsc"
+
+pipeline:
+  - action: "strip_ansi"
+  - action: "truncate_lines"
+    max_length: 200
+
+on_error: "passthrough"
