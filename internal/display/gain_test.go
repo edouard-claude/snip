@@ -197,3 +197,127 @@ func TestRunGainNoTruncate(t *testing.T) {
 		t.Errorf("expected long command (%d chars) to appear untruncated in output", len(longCmd))
 	}
 }
+
+func TestRunGainQuota(t *testing.T) {
+	tracker := newTestTracker(t)
+	seedTracker(t, tracker)
+
+	// Capture stdout
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+
+	runErr := RunGain(tracker, []string{"--quota"})
+
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	os.Stdout = old
+
+	if runErr != nil {
+		t.Fatalf("unexpected error: %v", runErr)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Monthly projection") {
+		t.Error("expected output to contain 'Monthly projection'")
+	}
+	if !strings.Contains(output, "Tokens saved/month") {
+		t.Error("expected output to contain 'Tokens saved/month'")
+	}
+	if !strings.Contains(output, "Haiku savings") {
+		t.Error("expected output to contain 'Haiku savings'")
+	}
+	if !strings.Contains(output, "Sonnet savings") {
+		t.Error("expected output to contain 'Sonnet savings'")
+	}
+	if !strings.Contains(output, "Opus savings") {
+		t.Error("expected output to contain 'Opus savings'")
+	}
+	if !strings.Contains(output, "/month") {
+		t.Error("expected output to contain '/month'")
+	}
+}
+
+func TestRunGainQuotaWithDaily(t *testing.T) {
+	tracker := newTestTracker(t)
+	seedTracker(t, tracker)
+
+	// Capture stdout
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+
+	runErr := RunGain(tracker, []string{"--daily", "--quota"})
+
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	os.Stdout = old
+
+	if runErr != nil {
+		t.Fatalf("unexpected error: %v", runErr)
+	}
+
+	output := buf.String()
+	// Should have both the daily table and the quota projection
+	if !strings.Contains(output, "Date") {
+		t.Error("expected daily table headers")
+	}
+	if !strings.Contains(output, "Monthly projection") {
+		t.Error("expected quota projection section")
+	}
+}
+
+func TestRunGainQuotaNoData(t *testing.T) {
+	tracker := newTestTracker(t)
+
+	// Capture stdout
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+
+	runErr := RunGain(tracker, []string{"--quota"})
+
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	os.Stdout = old
+
+	if runErr != nil {
+		t.Fatalf("unexpected error: %v", runErr)
+	}
+
+	// With no data, the quota section should not appear (graceful skip)
+	output := buf.String()
+	if strings.Contains(output, "Monthly projection") {
+		t.Error("expected no quota projection when there is no data")
+	}
+}
+
+func TestFormatQuotaCost(t *testing.T) {
+	tests := []struct {
+		amount float64
+		want   string
+	}{
+		{0.25, "$0.25"},
+		{6.90, "$6.90"},
+		{15.00, "$15.0"},
+		{150.00, "$150"},
+	}
+	for _, tt := range tests {
+		got := formatQuotaCost(tt.amount)
+		if got != tt.want {
+			t.Errorf("formatQuotaCost(%.2f) = %q, want %q", tt.amount, got, tt.want)
+		}
+	}
+}

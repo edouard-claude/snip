@@ -25,6 +25,7 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 		showJSON    bool
 		showCSV     bool
 		showTop     bool
+		showQuota   bool
 		noTruncate  bool
 		historyN    int
 		topN        int
@@ -43,6 +44,8 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 			showJSON = true
 		case "--csv":
 			showCSV = true
+		case "--quota":
+			showQuota = true
 		case "--top":
 			showTop = true
 			if i+1 < len(args) {
@@ -83,27 +86,48 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 
 	if showTop {
 		printSummary(summary)
-		return showByCommand(tracker, topN, noTruncate)
+		err := showByCommand(tracker, topN, noTruncate)
+		if err == nil && showQuota {
+			printQuotaProjection(tracker)
+		}
+		return err
 	}
 
 	if showWeekly {
 		printSummary(summary)
-		return showPeriodReport(tracker, "weekly")
+		err := showPeriodReport(tracker, "weekly")
+		if err == nil && showQuota {
+			printQuotaProjection(tracker)
+		}
+		return err
 	}
 
 	if showMonthly {
 		printSummary(summary)
-		return showPeriodReport(tracker, "monthly")
+		err := showPeriodReport(tracker, "monthly")
+		if err == nil && showQuota {
+			printQuotaProjection(tracker)
+		}
+		return err
 	}
 
 	if showDaily {
-		return showDailyReport(tracker, days, summary)
+		err := showDailyReport(tracker, days, summary)
+		if err == nil && showQuota {
+			printQuotaProjection(tracker)
+		}
+		return err
 	}
 
 	// Default: full dashboard (summary + sparkline + top commands)
 	printSummary(summary)
 	showSparkline(tracker)
 	_ = showByCommand(tracker, 10, noTruncate)
+
+	if showQuota {
+		printQuotaProjection(tracker)
+	}
+
 	return nil
 }
 
@@ -218,6 +242,75 @@ func showByCommand(tracker *tracking.Tracker, limit int, noTruncate bool) error 
 	fmt.Print(FormatTable(headers, rows))
 	fmt.Println()
 	return nil
+}
+
+// quotaTier holds a model tier name and its price per 1M input tokens.
+type quotaTier struct {
+	name   string
+	priceM float64
+}
+
+// quotaTiers lists model tiers for the --quota projection.
+var quotaTiers = []quotaTier{
+	{"Haiku", 0.25},
+	{"Sonnet", 3.00},
+	{"Opus", 15.00},
+}
+
+func printQuotaProjection(tracker *tracking.Tracker) {
+	daily, err := tracker.GetDaily(30)
+	if err != nil || len(daily) == 0 {
+		return
+	}
+
+	totalSaved := 0
+	for _, d := range daily {
+		totalSaved += d.SavedTokens
+	}
+
+	activeDays := len(daily)
+	if activeDays == 0 {
+		return
+	}
+
+	avgDaily := float64(totalSaved) / float64(activeDays)
+	monthlySaved := int(avgDaily * 30)
+
+	tty := IsTerminal()
+
+	if tty {
+		fmt.Println(DimStyle.Render("  Monthly projection (based on last 30 days):"))
+	} else {
+		fmt.Println("  Monthly projection (based on last 30 days):")
+	}
+
+	printRow := func(label, value string) {
+		if tty {
+			fmt.Printf("    %s  %s\n", DimStyle.Render(fmt.Sprintf("%-20s", label)), StatStyle.Render(value))
+		} else {
+			fmt.Printf("    %-20s  %s\n", label, value)
+		}
+	}
+
+	printRow("Tokens saved/month", "~"+utils.FormatTokens(monthlySaved))
+
+	for _, tier := range quotaTiers {
+		cost := float64(monthlySaved) / 1_000_000 * tier.priceM
+		printRow(tier.name+" savings", formatQuotaCost(cost)+"/month")
+	}
+
+	fmt.Println()
+}
+
+// formatQuotaCost formats a dollar amount for the quota projection display.
+func formatQuotaCost(amount float64) string {
+	if amount >= 100 {
+		return fmt.Sprintf("$%.0f", amount)
+	}
+	if amount >= 10 {
+		return fmt.Sprintf("$%.1f", amount)
+	}
+	return fmt.Sprintf("$%.2f", amount)
 }
 
 func showSparkline(tracker *tracking.Tracker) {

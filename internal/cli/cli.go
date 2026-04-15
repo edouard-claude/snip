@@ -11,10 +11,12 @@ import (
 	"github.com/edouard-claude/snip/internal/config"
 	"github.com/edouard-claude/snip/internal/discover"
 	"github.com/edouard-claude/snip/internal/display"
+	"github.com/edouard-claude/snip/internal/economics"
 	"github.com/edouard-claude/snip/internal/engine"
 	"github.com/edouard-claude/snip/internal/filter"
 	"github.com/edouard-claude/snip/internal/hook"
 	"github.com/edouard-claude/snip/internal/initcmd"
+	"github.com/edouard-claude/snip/internal/learn"
 	"github.com/edouard-claude/snip/internal/tee"
 	"github.com/edouard-claude/snip/internal/tracking"
 	"github.com/edouard-claude/snip/internal/trust"
@@ -86,6 +88,28 @@ func Run(args []string) int {
 		}
 		return 0
 
+	case "cc-economics":
+		if !tracking.DriverAvailable {
+			display.PrintError("cc-economics requires full build (this binary was built with -tags lite)")
+			return 1
+		}
+		cfg, cfgErr := config.Load()
+		if cfgErr != nil {
+			cfg = config.DefaultConfig()
+		}
+		dbPath := tracking.DBPath(cfg.Tracking.DBPath)
+		tracker, err := tracking.NewTracker(dbPath)
+		if err != nil {
+			display.PrintError(err.Error())
+			return 1
+		}
+		defer func() { _ = tracker.Close() }()
+		if err := economics.Run(tracker, cmdArgs); err != nil {
+			display.PrintError(err.Error())
+			return 1
+		}
+		return 0
+
 	case "config":
 		cfg, err := config.Load()
 		if err != nil {
@@ -115,6 +139,13 @@ func Run(args []string) int {
 
 	case "discover":
 		if err := discover.Run(cmdArgs); err != nil {
+			display.PrintError(err.Error())
+			return 1
+		}
+		return 0
+
+	case "learn":
+		if err := learn.Run(cmdArgs); err != nil {
 			display.PrintError(err.Error())
 			return 1
 		}
@@ -230,7 +261,9 @@ Commands:
   init         Install agent integration (default: claude-code)
   hook         Handle agent PreToolUse/shell hook
   gain         Show token savings report
+  cc-economics Show financial impact of token savings by API tier
   discover     Scan sessions for missed filter opportunities
+  learn        Detect CLI error-correction patterns in sessions
   verify       Run inline filter tests (--require-all to enforce coverage)
   config       Show current configuration
   trust        Trust project-local filter file(s) by SHA-256 hash
@@ -257,6 +290,9 @@ Examples:
   snip gain --top 10
   snip gain --history 20
   snip gain --no-truncate
+  snip gain --quota
+  snip cc-economics
+  snip cc-economics --tier sonnet
   snip init
   snip init --agent cursor
   snip init --agent codex
