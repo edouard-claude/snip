@@ -15,7 +15,7 @@ The binary (snip) is the engine. Filters are data files. The two evolve independ
 ```
 cmd/snip/main.go        # Entry point
 embed.go                # Embedded default filters (go:embed)
-filters/*.yaml          # Declarative filter definitions (22 filters)
+filters/*.yaml          # Declarative filter definitions (126 filters)
 internal/
   cli/                  # CLI routing, flag parsing
   config/               # TOML config loading (~/.config/snip/config.toml)
@@ -23,7 +23,8 @@ internal/
   engine/               # Command execution (goroutines), pipeline orchestration
   filter/               # DSL types, 16 built-in actions, YAML parser, registry
   hook/                 # Claude Code PreToolUse hook handler (native Go, no bash/jq)
-  initcmd/              # Claude Code hook installation
+  initcmd/              # Multi-agent hook installation (Claude Code, Cursor, Codex, Windsurf, Cline)
+  discover/             # Session history scanner for missed savings
   tracking/             # SQLite token tracking (pure Go, no CGO)
   tee/                  # Raw output recovery on failure
   utils/                # Truncate, StripANSI, EstimateTokens, LazyRegex
@@ -82,10 +83,11 @@ Tests requiring SQLite must have `//go:build !lite` tag. Check `tracking.DriverA
 
 ## Filter DSL
 
-Filters are declarative YAML files with 16 built-in actions:
+Filters are declarative YAML files with 19 built-in actions:
 `keep_lines`, `remove_lines`, `truncate_lines`, `strip_ansi`, `head`, `tail`,
 `group_by`, `dedup`, `json_extract`, `json_schema`, `ndjson_stream`,
-`regex_extract`, `state_machine`, `aggregate`, `format_template`, `compact_path`
+`regex_extract`, `state_machine`, `aggregate`, `format_template`, `compact_path`,
+`replace`, `match_output`, `on_empty`
 
 ## Release Workflow
 
@@ -117,5 +119,5 @@ git tag -a v0.1.1 -m "fix: description" && git push origin v0.1.1
 - Direct communication style — no hedging, state facts and solutions
 - TDD workflow: write test first, implement, refactor
 - Use context wrapping on errors: `fmt.Errorf("operation: %w", err)`
-- When adding a new built-in subcommand: add it to both the `switch` in `cli.go` AND `isBuiltInCommand` in `flags.go`
+- When adding a new built-in subcommand: add it to both the `switch` in `cli.go` AND `isBuiltInCommand` in `flags.go` (current builtins: init, gain, config, proxy, hook, discover)
 - When changing user-facing behavior, filters, or architecture: update the GitHub wiki (`git clone https://github.com/edouard-claude/snip.wiki.git`) to stay in sync

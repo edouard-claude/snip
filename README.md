@@ -140,14 +140,15 @@ snip integrates with every major AI coding assistant. One binary, universal comp
 
 | Tool | Install | Method |
 |------|---------|--------|
-| **Claude Code** | `snip init` | PreToolUse hook |
-| **Cursor** | hooks.json config | beforeShellExecution hook |
+| **Claude Code** | `snip init` | PreToolUse hook (native) |
+| **Cursor** | `snip init --agent cursor` | beforeShellExecution hook (native) |
+| **Codex (OpenAI)** | `snip init --agent codex` | AGENTS.md prompt injection |
+| **Windsurf** | `snip init --agent windsurf` | .windsurfrules prompt injection |
+| **Cline / Roo Code** | `snip init --agent cline` | .clinerules prompt injection |
 | **OpenCode** | [opencode-snip](https://github.com/VincentHardouin/opencode-snip) plugin | tool.execute.before hook |
+| **OpenClaw** | `openclaw plugins install openclaw-snip` | plugin |
 | **GitHub Copilot** | shell aliases | prefix commands with snip |
 | **Gemini CLI** | shell aliases | prefix commands with snip |
-| **Codex (OpenAI)** | shell aliases | prefix commands with snip |
-| **Windsurf** | shell aliases | prefix commands with snip |
-| **Cline / Roo Code** | shell aliases | prefix commands with snip |
 | **Aider** | shell aliases | prefix commands with snip |
 
 ### Claude Code
@@ -158,7 +159,7 @@ snip init
 
 This installs a `PreToolUse` hook that transparently rewrites supported commands. Claude Code never sees the substitution -- it receives compressed output as if the original command produced it.
 
-Supported commands: `git`, `go`, `cargo`, `npm`, `npx`, `yarn`, `pnpm`, `docker`, `kubectl`, `make`, `pip`, `pytest`, `jest`, `tsc`, `eslint`, `rustc`.
+Supported commands: 126 filters covering git, go, cargo, npm, yarn, pnpm, docker, kubectl, terraform, aws, gh, and 80+ more tools.
 
 ```bash
 snip init --uninstall   # remove the hook
@@ -166,18 +167,25 @@ snip init --uninstall   # remove the hook
 
 ### Cursor
 
-Cursor supports hooks since v1.7 via `~/.cursor/hooks.json`:
-
-```json
-{
-  "version": 1,
-  "hooks": {
-    "beforeShellExecution": [
-      { "command": "snip hook" }
-    ]
-  }
-}
+```bash
+snip init --agent cursor
 ```
+
+This patches `~/.cursor/hooks.json` with a `beforeShellExecution` hook. Works the same way as Claude Code.
+
+```bash
+snip init --agent cursor --uninstall   # remove the hook
+```
+
+### Codex / Windsurf / Cline
+
+```bash
+snip init --agent codex      # creates AGENTS.md in current directory
+snip init --agent windsurf   # creates .windsurfrules
+snip init --agent cline      # creates .clinerules
+```
+
+These agents use prompt injection: a markdown file instructs the LLM to prefix shell commands with snip. Project-scoped (created in the current directory).
 
 ### OpenCode
 
@@ -192,7 +200,13 @@ Install the [opencode-snip](https://github.com/VincentHardouin/opencode-snip) pl
 
 The plugin uses the `tool.execute.before` hook to automatically prefix all commands with `snip`. Commands not supported by snip pass through unchanged.
 
-### Copilot / Gemini / Codex / Windsurf / Cline / Aider
+### OpenClaw
+
+```bash
+openclaw plugins install openclaw-snip
+```
+
+### Copilot / Gemini / Aider
 
 Use shell aliases to route commands through snip:
 
@@ -228,10 +242,14 @@ snip gain --history 20      # last 20 commands
 snip gain --no-truncate     # disable command truncation
 snip gain --json            # machine-readable output
 snip gain --csv             # CSV export
+snip discover               # find missed savings in Claude Code history
+snip discover --since 30    # scan last 30 days
+snip discover --all         # scan all projects
 snip -v <command>           # verbose mode (show filter details)
 snip proxy <command>        # force passthrough (no filtering)
 snip config                 # show config
 snip init                   # install Claude Code hook
+snip init --agent cursor    # install Cursor hook
 snip init --uninstall       # remove hook
 ```
 
@@ -265,34 +283,32 @@ pipeline:
 on_error: "passthrough"
 ```
 
-### Built-in Filters
+### 126 Built-in Filters
 
-| Filter | What it does |
-|--------|-------------|
-| `git-status` | Categorized status with file counts |
-| `git-diff` | Stat summary, truncated to 30 files |
-| `git-log` | One-line per commit: hash + message + author + date |
-| `go-test` | Pass/fail summary with failure details |
-| `cargo-test` | Pass/fail summary with failure details |
-| `rspec` | Pass/fail summary for Ruby RSpec |
-| `rails-routes` | Filtered Rails routes output |
-| `rails-migrate` | Filtered Rails migration output |
-| `bundle-install` | Filtered Bundler output |
-| `npm-install` | Basic npm output filtering |
-| `npx` | Basic npx output filtering |
-| `yarn-install` | Basic yarn output filtering |
-| `pnpm-install` | Basic pnpm output filtering |
-| `docker-build` | Basic docker output filtering |
-| `kubectl-get` | Basic kubectl output filtering |
-| `make` | Basic make output filtering |
-| `pip-install` | Basic pip output filtering |
-| `pytest` | Basic pytest output filtering |
-| `jest` | Basic jest output filtering |
-| `tsc` | Basic tsc output filtering |
-| `eslint` | Basic eslint output filtering |
-| `rustc` | Basic rustc output filtering |
+snip ships with **126 declarative YAML filters** covering all major developer tools:
 
-### 16 Pipeline Actions
+| Category | Filters |
+|----------|---------|
+| **Git** (12) | status, log, diff, show, add, commit, push, pull, branch, fetch, stash, worktree |
+| **GitHub CLI** (3) | gh pr, gh issue, gh run |
+| **Go** (4) | go test, go build, go vet, golangci-lint |
+| **Rust** (7) | cargo test/build/check/clippy/install/nextest, rustc |
+| **Python** (8) | pytest, ruff, mypy, basedpyright, ty, pip, poetry, uv |
+| **JavaScript/TypeScript** (17) | jest, vitest, eslint, tsc, biome, oxlint, prettier, next, playwright, nx, turbo, npm, npx, yarn, pnpm, prisma |
+| **Ruby** (6) | rspec, rubocop, rake, bundle, rails migrate, rails routes |
+| **.NET** (3) | dotnet build/test/format |
+| **Docker/K8s** (7) | docker build/ps/images/logs/compose, kubectl get/logs |
+| **Cloud/Infra** (6) | terraform, tofu, helm, ansible-playbook, gcloud, aws |
+| **Build tools** (12) | make, gcc, g++, gradle, mvn, swift, xcodebuild, just, task, pio, trunk, mise |
+| **Files/Search** (7) | ls, find, grep, rg, diff, wc, tree |
+| **Linting** (5) | shellcheck, hadolint, markdownlint, yamllint, pre-commit |
+| **Package managers** (4) | brew, composer, poetry, uv |
+| **System/Network** (14) | curl, wget, psql, jq, ping, ssh, rsync, df, du, ps, systemctl, iptables, stat, fail2ban |
+| **Other** (11) | jira, jj, yadm, gt, ollama, sops, skopeo, shopify, quarto, liquibase, spring-boot |
+
+Run `snip discover` to see which of your commands already have filters.
+
+### 19 Pipeline Actions
 
 | Action | Description |
 |--------|-------------|
@@ -311,6 +327,9 @@ on_error: "passthrough"
 | `aggregate` | Count pattern matches |
 | `format_template` | Go template formatting |
 | `compact_path` | Shorten file paths |
+| `replace` | Regex find and replace |
+| `match_output` | Conditional short-circuit (return message if pattern matches) |
+| `on_empty` | Return message if output is empty |
 
 ### Custom Filters
 
@@ -396,7 +415,7 @@ Looking for an rtk alternative? snip takes a fundamentally different approach to
 | Concurrency | 2 OS threads | Goroutines (lightweight, no thread pool) |
 | SQLite | Requires CGO + C compiler | Pure Go driver -- static binary, no dependencies |
 | Cross-compilation | Per-target C toolchain | `GOOS=linux GOARCH=arm64 go build` |
-| Pipeline actions | Built-in strategies | 16 composable actions (keep, remove, regex, JSON, state machine...) |
+| Pipeline actions | Built-in strategies | 19 composable actions (keep, remove, regex, JSON, state machine...) |
 | Contributing | Rust knowledge required | YAML knowledge sufficient |
 
 Both tools solve the same problem -- reducing AI token costs from verbose CLI output. snip's bet is that **extensibility wins**: when anyone can write a filter in 5 minutes without touching Go or Rust, the filter ecosystem grows faster.
@@ -419,7 +438,7 @@ Full documentation is available on the **[Wiki](https://github.com/edouard-claud
 - [Integration](https://github.com/edouard-claude/snip/wiki/Integration) — Claude Code, Cursor, Aider, standalone
 - [Gain Dashboard](https://github.com/edouard-claude/snip/wiki/Gain-Dashboard) — Token savings reports and analytics
 - [Filters](https://github.com/edouard-claude/snip/wiki/Filters) — Built-in filters, custom filters
-- [Filter DSL Reference](https://github.com/edouard-claude/snip/wiki/Filter-DSL-Reference) — All 16 pipeline actions
+- [Filter DSL Reference](https://github.com/edouard-claude/snip/wiki/Filter-DSL-Reference) — All 19 pipeline actions
 - [Configuration](https://github.com/edouard-claude/snip/wiki/Configuration) — TOML config, environment variables
 - [Architecture](https://github.com/edouard-claude/snip/wiki/Architecture) — Design decisions, internals
 - [Contributing](https://github.com/edouard-claude/snip/wiki/Contributing) — Dev setup, adding filters, conventions
