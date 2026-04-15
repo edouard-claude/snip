@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/edouard-claude/snip/internal/config"
+	"github.com/edouard-claude/snip/internal/display"
 	"github.com/edouard-claude/snip/internal/filter"
 	"github.com/edouard-claude/snip/internal/hook"
+	"github.com/edouard-claude/snip/internal/utils"
 )
 
 // sessionLine represents a single JSONL entry from a Claude Code session file.
@@ -357,30 +359,82 @@ func sumMap(m map[string]int) int {
 
 // printResult outputs the discover report to stdout.
 func printResult(r Result) {
-	fmt.Println("snip discover - missed savings analysis")
+	tty := display.IsTerminal()
+
 	fmt.Println()
-	fmt.Printf("Scanned: %d sessions, %d commands\n", r.SessionsScanned, r.TotalCommands)
+	if tty {
+		fmt.Println(display.HeaderStyle.Render("  snip — Discover Report"))
+		fmt.Println(display.DimStyle.Render("  " + display.FormatSeparator(30)))
+	} else {
+		fmt.Println("  snip — Discover Report")
+		fmt.Println("  " + display.FormatSeparator(30))
+	}
 	fmt.Println()
 
 	if r.TotalCommands == 0 {
-		fmt.Println("No Bash commands found in the scanned sessions.")
+		fmt.Println("  No Bash commands found in the scanned sessions.")
 		return
 	}
 
 	supportedPct := float64(r.SupportedCount) / float64(r.TotalCommands) * 100
-	unsupportedPct := float64(r.UnsupportedCount) / float64(r.TotalCommands) * 100
 
-	fmt.Printf("Supported (has filter):     %d commands (%.0f%%)\n", r.SupportedCount, supportedPct)
-	for _, s := range r.Supported {
-		fmt.Printf("  %-22s%d\n", s.Name, s.Count)
+	printKPI := func(label, value string, styled bool) {
+		if tty {
+			styledValue := value
+			if !styled {
+				styledValue = display.StatStyle.Render(value)
+			}
+			fmt.Printf("  %s  %s\n", display.DimStyle.Render(fmt.Sprintf("%-20s", label)), styledValue)
+		} else {
+			fmt.Printf("  %-20s  %s\n", label, value)
+		}
+	}
+
+	printKPI("Sessions scanned", fmt.Sprintf("%d", r.SessionsScanned), false)
+	printKPI("Commands found", fmt.Sprintf("%d", r.TotalCommands), false)
+	printKPI("Filter coverage", display.ColorSavings(supportedPct), true)
+
+	bar := display.ColorBar(r.SupportedCount, r.TotalCommands, 20)
+	fmt.Println()
+	if tty {
+		fmt.Printf("  %s %s\n", bar, display.DimStyle.Render(fmt.Sprintf("%.0f%%", supportedPct)))
+	} else {
+		fmt.Printf("  %s %.0f%%\n", bar, supportedPct)
 	}
 	fmt.Println()
 
-	fmt.Printf("Unsupported (no filter):    %d commands (%.0f%%)\n", r.UnsupportedCount, unsupportedPct)
-	for _, s := range r.Unsupported {
-		fmt.Printf("  %-22s%d\n", s.Name, s.Count)
+	// Subtract 9 to leave room for the Count column and separator; prevents
+	// long Windows paths from overflowing into the adjacent column.
+	maxCmd := display.TerminalWidth() - 9
+	if maxCmd < 20 {
+		maxCmd = 20
+	}
+
+	printSection := func(title string, count int, pct float64, stats []CommandStat) {
+		if tty {
+			fmt.Println(display.DimStyle.Render(fmt.Sprintf("  %s — %d commands (%.0f%%)", title, count, pct)))
+		} else {
+			fmt.Printf("  %s — %d commands (%.0f%%)\n", title, count, pct)
+		}
+		fmt.Println()
+
+		if len(stats) > 0 {
+			rows := make([][]string, 0, len(stats))
+			for _, s := range stats {
+				rows = append(rows, []string{utils.Truncate(s.Name, maxCmd), fmt.Sprintf("%d", s.Count)})
+			}
+			fmt.Print(display.FormatTable([]string{"Command", "Count"}, rows))
+			fmt.Println()
+		}
+	}
+
+	printSection("Supported", r.SupportedCount, supportedPct, r.Supported)
+	printSection("Unsupported", r.UnsupportedCount, 100-supportedPct, r.Unsupported)
+
+	if tty {
+		fmt.Println(display.StatStyle.Render(fmt.Sprintf("  %.0f%% of your commands already have snip filters.", supportedPct)))
+	} else {
+		fmt.Printf("  %.0f%% of your commands already have snip filters.\n", supportedPct)
 	}
 	fmt.Println()
-
-	fmt.Printf("Potential: %.0f%% of your commands already have snip filters.\n", supportedPct)
 }

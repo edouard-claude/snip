@@ -1,8 +1,11 @@
 package discover
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -332,6 +335,77 @@ func TestEmptyScan(t *testing.T) {
 	}
 	if result.TotalCommands != 0 {
 		t.Errorf("total commands = %d, want 0", result.TotalCommands)
+	}
+}
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	fn()
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	os.Stdout = old
+	return buf.String()
+}
+
+func TestPrintResultEmpty(t *testing.T) {
+	output := captureStdout(t, func() {
+		printResult(Result{SessionsScanned: 3, TotalCommands: 0})
+	})
+	if !strings.Contains(output, "No Bash commands found") {
+		t.Errorf("expected 'No Bash commands found' in output, got: %q", output)
+	}
+}
+
+func TestPrintResultWithData(t *testing.T) {
+	result := Result{
+		SessionsScanned:  10,
+		TotalCommands:    100,
+		SupportedCount:   83,
+		UnsupportedCount: 17,
+		Supported: []CommandStat{
+			{Name: "git", Count: 50},
+			{Name: "go", Count: 33},
+		},
+		Unsupported: []CommandStat{
+			{Name: "cat", Count: 17},
+		},
+	}
+	output := captureStdout(t, func() {
+		printResult(result)
+	})
+	for _, want := range []string{"Command", "Count", "git", "83%"} {
+		if !strings.Contains(output, want) {
+			t.Errorf("expected %q in output, got: %q", want, output)
+		}
+	}
+}
+
+func TestPrintResultTruncatesLongNames(t *testing.T) {
+	longName := strings.Repeat("a", 200)
+	result := Result{
+		SessionsScanned:  1,
+		TotalCommands:    1,
+		SupportedCount:   1,
+		UnsupportedCount: 0,
+		Supported: []CommandStat{
+			{Name: longName, Count: 1},
+		},
+	}
+	output := captureStdout(t, func() {
+		printResult(result)
+	})
+	if strings.Contains(output, longName) {
+		t.Errorf("expected long name (%d chars) to be truncated in output", len(longName))
+	}
+	if !strings.Contains(output, "...") {
+		t.Errorf("expected truncated form ending in '...' in output")
 	}
 }
 
