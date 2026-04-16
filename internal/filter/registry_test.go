@@ -125,6 +125,34 @@ func TestRegistryCommandsEmpty(t *testing.T) {
 	}
 }
 
+func TestHasAnyFilter(t *testing.T) {
+	f := Filter{
+		Name:    "go-test",
+		Version: 1,
+		Match:   Match{Command: "go", Subcommand: "test", ExcludeFlags: []string{"-v"}},
+		OnError: "passthrough",
+	}
+	reg := NewRegistry([]Filter{f})
+
+	// Key scenario: Match returns nil due to -v, but HasAnyFilter must still return true.
+	// This is what suppresses the misleading "no filter for go" message.
+	if reg.Match("go", "test", []string{"-v"}) != nil {
+		t.Error("Match should return nil when -v is excluded")
+	}
+	if !reg.HasAnyFilter("go", "test") {
+		t.Error("HasAnyFilter should return true even when flags exclude the filter")
+	}
+
+	// Known command, unknown subcommand — no command-only entry
+	if reg.HasAnyFilter("go", "build") {
+		t.Error("expected HasAnyFilter=false for go build (no filter)")
+	}
+	// Completely unknown command
+	if reg.HasAnyFilter("python", "") {
+		t.Error("expected HasAnyFilter=false for python")
+	}
+}
+
 func TestShouldInject(t *testing.T) {
 	f := Filter{
 		Name: "git-log",

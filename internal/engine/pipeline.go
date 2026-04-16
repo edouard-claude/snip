@@ -35,9 +35,12 @@ func (p *Pipeline) Run(command string, args []string) int {
 	// Match filter
 	f := p.Registry.Match(command, subcommand, filterArgs)
 
-	// No filter found: passthrough with hint so LLMs know snip is unnecessary
+	// No filter found: passthrough.
+	// Only print a hint when no filter is registered at all — if a filter exists
+	// but was excluded by flags (e.g. go test -v), stay silent to avoid the
+	// misleading "no filter for go" message.
 	if f == nil {
-		if !p.QuietNoFilter {
+		if !p.QuietNoFilter && !p.Registry.HasAnyFilter(command, subcommand) {
 			fmt.Fprintf(os.Stderr, "snip: no filter for %q, passing through -- you can run %q directly\n", command, command)
 		}
 		return p.Passthrough(command, args)

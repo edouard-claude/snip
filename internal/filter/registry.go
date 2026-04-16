@@ -103,6 +103,19 @@ func (r *Registry) ShouldInject(f *Filter, args []string) ([]string, bool) {
 	return result, true
 }
 
+// HasAnyFilter returns true if any filter is registered for the given command
+// and subcommand, regardless of flag constraints. Use this to distinguish
+// "no filter at all" from "filter exists but was excluded by flags".
+func (r *Registry) HasAnyFilter(command, subcommand string) bool {
+	if subcommand != "" {
+		if _, ok := r.byKey[command+":"+subcommand]; ok {
+			return true
+		}
+	}
+	_, ok := r.byKey[command]
+	return ok
+}
+
 // Commands returns a sorted, unique list of base command names in the registry.
 // Keys like "git:log" are split on ":" and only the base command "git" is kept.
 func (r *Registry) Commands() []string {
