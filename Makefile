@@ -12,7 +12,7 @@ build-lite:
 	CGO_ENABLED=0 go build -tags lite -o $(BINARY) $(LDFLAGS) ./$(BUILD_DIR)
 
 build-windows:
-	GOOS=windows CGO_ENABLED=0 go build -o $(BINARY).exe $(LDFLAGS) ./$(BUILD_DIR)
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o $(BINARY).exe $(LDFLAGS) ./$(BUILD_DIR)
 
 test:
 	go test -cover ./...
