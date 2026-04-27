@@ -21,8 +21,8 @@ import (
 type sessionLine struct {
 	Type    string `json:"type"`
 	Message *struct {
-		Role    string            `json:"role"`
-		Content json.RawMessage   `json:"content"`
+		Role    string          `json:"role"`
+		Content json.RawMessage `json:"content"`
 	} `json:"message,omitempty"`
 	Timestamp string `json:"timestamp,omitempty"`
 }
@@ -64,6 +64,14 @@ type Options struct {
 // Run executes the discover command with the given CLI args.
 func Run(args []string) error {
 	opts := parseArgs(args)
+	return RunWithOptions(opts)
+}
+
+// RunWithOptions executes discover with parsed options.
+func RunWithOptions(opts Options) error {
+	if opts.Since <= 0 {
+		opts.Since = 7
+	}
 
 	cfg, err := config.Load()
 	if err != nil {

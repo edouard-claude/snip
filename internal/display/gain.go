@@ -10,62 +10,80 @@ import (
 	"github.com/edouard-claude/snip/internal/utils"
 )
 
+// GainOptions controls the gain report output.
+type GainOptions struct {
+	ShowDaily   bool
+	ShowWeekly  bool
+	ShowMonthly bool
+	ShowJSON    bool
+	ShowCSV     bool
+	ShowTop     bool
+	ShowQuota   bool
+	NoTruncate  bool
+	HistoryN    int
+	TopN        int
+	Days        int
+}
+
 // RunGain executes the gain (token savings report) command.
 func RunGain(tracker *tracking.Tracker, args []string) error {
+	var opts GainOptions
+	opts.Days = 7
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--daily":
+			opts.ShowDaily = true
+		case "--weekly":
+			opts.ShowWeekly = true
+		case "--monthly":
+			opts.ShowMonthly = true
+		case "--json":
+			opts.ShowJSON = true
+		case "--csv":
+			opts.ShowCSV = true
+		case "--quota":
+			opts.ShowQuota = true
+		case "--top":
+			opts.ShowTop = true
+			if i+1 < len(args) {
+				_, _ = fmt.Sscanf(args[i+1], "%d", &opts.TopN)
+				i++
+			}
+			if opts.TopN <= 0 {
+				opts.TopN = 10
+			}
+		case "--history":
+			if i+1 < len(args) {
+				_, _ = fmt.Sscanf(args[i+1], "%d", &opts.HistoryN)
+				i++
+			}
+			if opts.HistoryN <= 0 {
+				opts.HistoryN = 10
+			}
+		case "--no-truncate":
+			opts.NoTruncate = true
+		}
+	}
+
+	return RunGainWithOptions(tracker, opts)
+}
+
+// RunGainWithOptions executes the gain report using parsed options.
+func RunGainWithOptions(tracker *tracking.Tracker, opts GainOptions) error {
 	if tracker == nil {
 		PrintError("no tracking data (run some commands first)")
 		return nil
 	}
 
-	// Parse args
-	var (
-		showDaily   bool
-		showWeekly  bool
-		showMonthly bool
-		showJSON    bool
-		showCSV     bool
-		showTop     bool
-		showQuota   bool
-		noTruncate  bool
-		historyN    int
-		topN        int
-		days        = 7
-	)
-
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--daily":
-			showDaily = true
-		case "--weekly":
-			showWeekly = true
-		case "--monthly":
-			showMonthly = true
-		case "--json":
-			showJSON = true
-		case "--csv":
-			showCSV = true
-		case "--quota":
-			showQuota = true
-		case "--top":
-			showTop = true
-			if i+1 < len(args) {
-				_, _ = fmt.Sscanf(args[i+1], "%d", &topN)
-				i++
-			}
-			if topN <= 0 {
-				topN = 10
-			}
-		case "--history":
-			if i+1 < len(args) {
-				_, _ = fmt.Sscanf(args[i+1], "%d", &historyN)
-				i++
-			}
-			if historyN <= 0 {
-				historyN = 10
-			}
-		case "--no-truncate":
-			noTruncate = true
-		}
+	if opts.Days <= 0 {
+		opts.Days = 7
+	}
+	if opts.ShowTop && opts.TopN <= 0 {
+		opts.TopN = 10
+	}
+	if opts.HistoryN < 0 {
+		opts.HistoryN = 0
 	}
 
 	summary, err := tracker.GetSummary()
@@ -73,47 +91,47 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 		return fmt.Errorf("get summary: %w", err)
 	}
 
-	if showJSON {
-		return exportJSON(summary, tracker, days)
+	if opts.ShowJSON {
+		return exportJSON(summary, tracker, opts.Days)
 	}
-	if showCSV {
-		return exportCSV(tracker, days)
-	}
-
-	if historyN > 0 {
-		return showHistory(tracker, historyN, noTruncate)
+	if opts.ShowCSV {
+		return exportCSV(tracker, opts.Days)
 	}
 
-	if showTop {
+	if opts.HistoryN > 0 {
+		return showHistory(tracker, opts.HistoryN, opts.NoTruncate)
+	}
+
+	if opts.ShowTop {
 		printSummary(summary)
-		err := showByCommand(tracker, topN, noTruncate)
-		if err == nil && showQuota {
+		err := showByCommand(tracker, opts.TopN, opts.NoTruncate)
+		if err == nil && opts.ShowQuota {
 			printQuotaProjection(tracker)
 		}
 		return err
 	}
 
-	if showWeekly {
+	if opts.ShowWeekly {
 		printSummary(summary)
 		err := showPeriodReport(tracker, "weekly")
-		if err == nil && showQuota {
+		if err == nil && opts.ShowQuota {
 			printQuotaProjection(tracker)
 		}
 		return err
 	}
 
-	if showMonthly {
+	if opts.ShowMonthly {
 		printSummary(summary)
 		err := showPeriodReport(tracker, "monthly")
-		if err == nil && showQuota {
+		if err == nil && opts.ShowQuota {
 			printQuotaProjection(tracker)
 		}
 		return err
 	}
 
-	if showDaily {
-		err := showDailyReport(tracker, days, summary)
-		if err == nil && showQuota {
+	if opts.ShowDaily {
+		err := showDailyReport(tracker, opts.Days, summary)
+		if err == nil && opts.ShowQuota {
 			printQuotaProjection(tracker)
 		}
 		return err
@@ -122,9 +140,9 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 	// Default: full dashboard (summary + sparkline + top commands)
 	printSummary(summary)
 	showSparkline(tracker)
-	_ = showByCommand(tracker, 10, noTruncate)
+	_ = showByCommand(tracker, 10, opts.NoTruncate)
 
-	if showQuota {
+	if opts.ShowQuota {
 		printQuotaProjection(tracker)
 	}
 

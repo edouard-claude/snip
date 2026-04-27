@@ -3,25 +3,18 @@ package cli
 import (
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
 	"path/filepath"
 
 	"github.com/edouard-claude/snip/internal/config"
-	"github.com/edouard-claude/snip/internal/discover"
 	"github.com/edouard-claude/snip/internal/display"
-	"github.com/edouard-claude/snip/internal/economics"
 	"github.com/edouard-claude/snip/internal/engine"
 	"github.com/edouard-claude/snip/internal/filter"
 	"github.com/edouard-claude/snip/internal/hook"
-	"github.com/edouard-claude/snip/internal/hookaudit"
-	"github.com/edouard-claude/snip/internal/initcmd"
-	"github.com/edouard-claude/snip/internal/learn"
 	"github.com/edouard-claude/snip/internal/tee"
 	"github.com/edouard-claude/snip/internal/tracking"
 	"github.com/edouard-claude/snip/internal/trust"
-	"github.com/edouard-claude/snip/internal/verify"
 )
 
 // version is set at build time via -ldflags "-X ...". Do not reassign.
@@ -29,157 +22,21 @@ var version = "dev"
 
 // Run is the main entry point. Returns exit code.
 func Run(args []string) int {
-	if len(args) < 2 {
-		printUsage()
-		return 0
+	flags := Flags{}
+	code := 0
+
+	root := newRootCommand(&flags, &code)
+	if len(args) > 1 {
+		root.SetArgs(args[1:])
+	} else {
+		root.SetArgs(nil)
 	}
 
-	flags, remaining := ParseFlags(args[1:])
-
-	if flags.Version {
-		fmt.Printf("snip v%s\n", version)
-		return 0
-	}
-	if flags.Help || len(remaining) == 0 {
-		printUsage()
-		return 0
-	}
-
-	command := remaining[0]
-	cmdArgs := remaining[1:]
-
-	// Commands that cannot be proxied: they must run in the parent shell
-	// to have any effect. Running them in a subprocess is a silent no-op.
-	if unproxyableReason(command) != "" {
-		fmt.Fprintf(os.Stderr, "snip: %s cannot be proxied (%s)\n", command, unproxyableReason(command))
+	if err := root.Execute(); err != nil {
 		return 1
 	}
 
-	// Built-in commands
-	switch command {
-	case "hook":
-		return runHook()
-
-	case "hook-audit":
-		if err := hookaudit.Run(cmdArgs); err != nil {
-			display.PrintError(err.Error())
-			return 1
-		}
-		return 0
-
-	case "init":
-		if err := initcmd.Run(cmdArgs); err != nil {
-			display.PrintError(err.Error())
-			return 1
-		}
-		return 0
-
-	case "gain":
-		if !tracking.DriverAvailable {
-			display.PrintError("gain requires full build (this binary was built with -tags lite)")
-			return 1
-		}
-		cfg, cfgErr := config.Load()
-		if cfgErr != nil {
-			cfg = config.DefaultConfig()
-		}
-		dbPath := tracking.DBPath(cfg.Tracking.DBPath)
-		tracker, err := tracking.NewTracker(dbPath)
-		if err != nil {
-			display.PrintError(err.Error())
-			return 1
-		}
-		defer func() { _ = tracker.Close() }()
-		if err := display.RunGain(tracker, cmdArgs); err != nil {
-			display.PrintError(err.Error())
-			return 1
-		}
-		return 0
-
-	case "cc-economics":
-		if !tracking.DriverAvailable {
-			display.PrintError("cc-economics requires full build (this binary was built with -tags lite)")
-			return 1
-		}
-		cfg, cfgErr := config.Load()
-		if cfgErr != nil {
-			cfg = config.DefaultConfig()
-		}
-		dbPath := tracking.DBPath(cfg.Tracking.DBPath)
-		tracker, err := tracking.NewTracker(dbPath)
-		if err != nil {
-			display.PrintError(err.Error())
-			return 1
-		}
-		defer func() { _ = tracker.Close() }()
-		if err := economics.Run(tracker, cmdArgs); err != nil {
-			display.PrintError(err.Error())
-			return 1
-		}
-		return 0
-
-	case "config":
-		cfg, err := config.Load()
-		if err != nil {
-			display.PrintError(err.Error())
-			return 1
-		}
-		fmt.Printf("tracking.db_path: %s\n", cfg.Tracking.DBPath)
-		fmt.Printf("filters.dir: %s\n", strings.Join(cfg.Filters.Dirs(), ", "))
-		fmt.Printf("tee.mode: %s\n", cfg.Tee.Mode)
-		fmt.Printf("tee.max_files: %d\n", cfg.Tee.MaxFiles)
-		fmt.Printf("display.color: %v\n", cfg.Display.Color)
-		fmt.Printf("display.emoji: %v\n", cfg.Display.Emoji)
-		fmt.Printf("display.quiet_no_filter: %v\n", cfg.Display.QuietNoFilter)
-		if len(cfg.Filters.Enable) == 0 {
-			fmt.Println("filters.enable: (all enabled)")
-		} else {
-			names := make([]string, 0, len(cfg.Filters.Enable))
-			for k := range cfg.Filters.Enable {
-				names = append(names, k)
-			}
-			sort.Strings(names)
-			for _, name := range names {
-				fmt.Printf("filters.enable.%s: %v\n", name, cfg.Filters.Enable[name])
-			}
-		}
-		return 0
-
-	case "discover":
-		if err := discover.Run(cmdArgs); err != nil {
-			display.PrintError(err.Error())
-			return 1
-		}
-		return 0
-
-	case "learn":
-		if err := learn.Run(cmdArgs); err != nil {
-			display.PrintError(err.Error())
-			return 1
-		}
-		return 0
-
-	case "verify":
-		return verify.Run(cmdArgs)
-
-	case "trust":
-		return runTrust(cmdArgs)
-
-	case "untrust":
-		return runUntrust(cmdArgs)
-
-	case "proxy":
-		// Direct passthrough without filtering
-		if len(cmdArgs) == 0 {
-			display.PrintError("proxy requires a command argument")
-			return 1
-		}
-		p := &engine.Pipeline{}
-		return p.Passthrough(cmdArgs[0], cmdArgs[1:])
-	}
-
-	// Filter pipeline
-	return runPipeline(command, cmdArgs, flags)
+	return code
 }
 
 // runHook handles the "snip hook" subcommand for Claude Code PreToolUse.

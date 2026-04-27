@@ -8,10 +8,15 @@ import (
 	"github.com/edouard-claude/snip/internal/utils"
 )
 
+// Options controls the cc-economics report output.
+type Options struct {
+	Tier string
+}
+
 // Tier holds a model tier name and its input price per 1M tokens.
 type Tier struct {
-	Name     string
-	PriceM   float64 // price per 1M input tokens
+	Name   string
+	PriceM float64 // price per 1M input tokens
 }
 
 // Tiers lists all supported pricing tiers in display order.
@@ -49,22 +54,25 @@ func FormatCost(amount float64) string {
 
 // Run executes the cc-economics subcommand.
 func Run(tracker *tracking.Tracker, args []string) error {
+	var opts Options
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--tier" && i+1 < len(args) {
+			opts.Tier = args[i+1]
+			i++
+		}
+	}
+	return RunWithOptions(tracker, opts)
+}
+
+// RunWithOptions executes the cc-economics subcommand with parsed options.
+func RunWithOptions(tracker *tracking.Tracker, opts Options) error {
 	if tracker == nil {
 		display.PrintError("no tracking data (run some commands first)")
 		return nil
 	}
 
-	// Parse --tier flag
-	var filterTier string
-	for i := 0; i < len(args); i++ {
-		if args[i] == "--tier" && i+1 < len(args) {
-			filterTier = args[i+1]
-			i++
-		}
-	}
-
-	if filterTier != "" && TierByName(filterTier) == nil {
-		return fmt.Errorf("unknown tier %q (valid: haiku, sonnet, opus)", filterTier)
+	if opts.Tier != "" && TierByName(opts.Tier) == nil {
+		return fmt.Errorf("unknown tier %q (valid: haiku, sonnet, opus)", opts.Tier)
 	}
 
 	summary, err := tracker.GetSummary()
@@ -110,8 +118,8 @@ func Run(tracker *tracking.Tracker, args []string) error {
 	}
 
 	tiers := Tiers
-	if filterTier != "" {
-		t := TierByName(filterTier)
+	if opts.Tier != "" {
+		t := TierByName(opts.Tier)
 		tiers = []Tier{*t}
 	}
 
