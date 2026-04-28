@@ -197,6 +197,31 @@ func Run(args []string) int {
 		}
 		return runPipeline(runCmd, runCmdArgs, flags)
 
+	case "check":
+		sepIdx := -1
+		for i, a := range cmdArgs {
+			if a == "--" {
+				sepIdx = i
+				break
+			}
+		}
+		if sepIdx < 0 {
+			display.PrintError("check requires -- separator: snip check -- <command> [args...]")
+			return 1
+		}
+		checkArgs := cmdArgs[sepIdx+1:]
+		if len(checkArgs) == 0 {
+			display.PrintError("check requires a command after --")
+			return 1
+		}
+		checkCmd := checkArgs[0]
+		checkCmdArgs := checkArgs[1:]
+		if r := unproxyableReason(checkCmd); r != "" {
+			fmt.Printf("shell builtin: %s\n", r)
+			return 1
+		}
+		return runCheck(checkCmd, checkCmdArgs, flags)
+
 	case "proxy":
 		// Direct passthrough without filtering
 		if len(cmdArgs) == 0 {
@@ -288,6 +313,52 @@ func runPipeline(command string, args []string, flags Flags) int {
 	return pipeline.Run(command, args)
 }
 
+func runCheck(command string, args []string, flags Flags) int {
+	cfg, err := config.Load()
+	if err != nil {
+		cfg = config.DefaultConfig()
+	}
+
+	filters, err := filter.LoadAll(cfg.Filters.Dirs())
+	if err != nil {
+		display.PrintError(fmt.Sprintf("load filters: %v", err))
+		return 1
+	}
+
+	registry := filter.NewRegistry(filters)
+
+	subcommand := ""
+	filterArgs := args
+	if len(args) > 0 {
+		subcommand = args[0]
+		filterArgs = args[1:]
+	}
+
+	f := registry.Match(command, subcommand, filterArgs)
+	if f == nil {
+		if registry.HasAnyFilter(command, subcommand) {
+			fmt.Println("no filter: excluded by flags")
+		} else {
+			fmt.Println("no filter")
+		}
+		return 1
+	}
+
+	enabled := true
+	if cfg.Filters.Enable != nil {
+		if e, ok := cfg.Filters.Enable[f.Name]; ok && !e {
+			enabled = false
+		}
+	}
+	if !enabled {
+		fmt.Printf("filter disabled: %s\n", f.Name)
+		return 1
+	}
+
+	fmt.Printf("filter: %s\n", f.Name)
+	return 0
+}
+
 func printUsage() {
 	usage := `snip v%s — CLI Token Killer
 
@@ -295,6 +366,7 @@ Usage: snip [flags] <command> [args...]
 
 Commands:
   run             Run command through snip filter pipeline (use -- to separate)
+  check           Check if a command would be filtered (use -- to separate)
   <command>       Run command through snip filter pipeline (implicit)
   init            Install agent integration (default: claude-code)
   hook            Handle agent PreToolUse/shell hook
@@ -347,12 +419,28 @@ Examples:
 
 // unproxyableReason returns a human-readable reason if the command cannot be
 // proxied through an external process, or "" if it can.
+// Commands are grouped by the shell feature they affect; each group covers
+// bash, zsh, and fish builtins that would be a silent no-op in a subprocess.
 func unproxyableReason(command string) string {
 	switch command {
-	case "cd":
+	case "cd", "chdir", "pushd", "popd":
 		return "it must run in the parent shell to change directory"
 	case "source", ".":
 		return "it must run in the parent shell to modify the environment"
+	case "export", "unset", "alias", "unalias", "readonly", "declare", "typeset", "local", "shift", "read", "mapfile", "readarray", "let", "getopts":
+		return "it must run in the parent shell to modify the environment"
+	case "set", "shopt", "setopt", "unsetopt", "emulate":
+		return "it must run in the parent shell to set shell options"
+	case "eval":
+		return "it must run in the parent shell to evaluate in current context"
+	case "exec":
+		return "it must run in the parent shell to replace the current process"
+	case "exit", "logout", "return", "break", "continue":
+		return "it must run in the parent shell to control flow"
+	case "wait", "bg", "fg", "disown", "jobs", "suspend":
+		return "it must run in the parent shell to access the job table"
+	case "bindkey", "bind", "complete", "compopt", "compinit", "zstyle", "autoload", "zmodload", "enable", "disable", "abbr", "functions", "hash", "trap", "umask", "ulimit":
+		return "it must run in the parent shell to configure the shell"
 	}
 	return ""
 }

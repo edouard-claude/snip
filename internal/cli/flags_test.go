@@ -139,6 +139,18 @@ func TestParseFlags(t *testing.T) {
 			wantFlags: Flags{Verbose: 1},
 			wantArgs:  []string{"run", "--", "git", "log"},
 		},
+		{
+			name:      "check is a built-in command",
+			args:      []string{"check", "--", "git", "log"},
+			wantFlags: Flags{},
+			wantArgs:  []string{"check", "--", "git", "log"},
+		},
+		{
+			name:      "check with snip flags before it",
+			args:      []string{"-v", "check", "--", "git", "log"},
+			wantFlags: Flags{Verbose: 1},
+			wantArgs:  []string{"check", "--", "git", "log"},
+		},
 	}
 
 	for _, tt := range tests {
