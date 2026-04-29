@@ -50,8 +50,8 @@ func Run(args []string) int {
 
 	// Commands that cannot be proxied: they must run in the parent shell
 	// to have any effect. Running them in a subprocess is a silent no-op.
-	if unproxyableReason(command) != "" {
-		fmt.Fprintf(os.Stderr, "snip: %s cannot be proxied (%s)\n", command, unproxyableReason(command))
+	if reason := unproxyableReason(command); reason != "" {
+		fmt.Fprintf(os.Stderr, "snip: %s cannot be proxied (%s)\n", command, reason)
 		return 1
 	}
 
@@ -180,15 +180,19 @@ func Run(args []string) int {
 			display.PrintError("run requires -- separator: snip run -- <command> [args...]")
 			return 1
 		}
-		runArgs := cmdArgs[sepIdx+1:]
+		if sepIdx > 0 {
+			display.PrintError(fmt.Sprintf("run: unexpected arguments before -- (%s)", strings.Join(cmdArgs[:sepIdx], " ")))
+			return 1
+		}
+		runArgs := cmdArgs[1:]
 		if len(runArgs) == 0 {
 			display.PrintError("run requires a command after --")
 			return 1
 		}
 		runCmd := runArgs[0]
 		runCmdArgs := runArgs[1:]
-		if unproxyableReason(runCmd) != "" {
-			display.PrintError(fmt.Sprintf("%s cannot be proxied (%s)", runCmd, unproxyableReason(runCmd)))
+		if reason := unproxyableReason(runCmd); reason != "" {
+			display.PrintError(fmt.Sprintf("%s cannot be proxied (%s)", runCmd, reason))
 			return 1
 		}
 		return runPipeline(runCmd, runCmdArgs, flags)

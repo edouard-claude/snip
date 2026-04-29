@@ -56,6 +56,27 @@ func TestRunSubcommandRejectsUnproxyable(t *testing.T) {
 	}
 }
 
+func TestRunSubcommandRejectsArgsBeforeSeparator(t *testing.T) {
+	code := Run([]string{"snip", "run", "foo", "--", "bar"})
+	if code != 1 {
+		t.Errorf("Run(run foo -- bar) = %d, want 1", code)
+	}
+}
+
+func TestRunGlobalHelpBeforeSeparator(t *testing.T) {
+	code := Run([]string{"snip", "run", "--help", "--", "foo", "bar"})
+	if code != 0 {
+		t.Errorf("Run(run --help -- foo bar) = %d, want 0", code)
+	}
+}
+
+func TestRunCommandHelpAfterSeparator(t *testing.T) {
+	code := Run([]string{"snip", "run", "--", "git", "--help"})
+	if code != 0 {
+		t.Errorf("Run(run -- git --help) = %d, want 0", code)
+	}
+}
+
 func TestRunSubcommandWithFlags(t *testing.T) {
 	flags, remaining := ParseFlags([]string{"-v", "run", "--", "git", "log", "-10"})
 	if flags.Verbose != 1 {
