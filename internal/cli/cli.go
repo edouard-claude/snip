@@ -51,7 +51,7 @@ func Run(args []string) int {
 	// Commands that cannot be proxied: they must run in the parent shell
 	// to have any effect. Running them in a subprocess is a silent no-op.
 	if reason := unproxyableReason(command); reason != "" {
-		fmt.Fprintf(os.Stderr, "snip: %s cannot be proxied (%s)\n", command, reason)
+		display.PrintError(fmt.Sprintf("%s cannot be proxied (%s)", command, reason))
 		return 1
 	}
 
@@ -187,10 +187,10 @@ func Run(args []string) int {
 			return 1
 		}
 		if r := unproxyableReason(targetCmd); r != "" {
-			fmt.Printf("shell builtin: %s\n", r)
+			display.PrintError(fmt.Sprintf("%s is a shell builtin (%s)", targetCmd, r))
 			return 1
 		}
-		return runCheck(targetCmd, targetArgs)
+		return runCheck(targetCmd, targetArgs, flags)
 
 	case "proxy":
 		// Direct passthrough without filtering
@@ -304,9 +304,12 @@ func runPipeline(command string, args []string, flags Flags) int {
 	return pipeline.Run(command, args)
 }
 
-func runCheck(command string, args []string) int {
+func runCheck(command string, args []string, flags Flags) int {
 	cfg, err := config.Load()
 	if err != nil {
+		if flags.Verbose > 0 {
+			fmt.Fprintf(os.Stderr, "snip: config error: %v, using defaults\n", err)
+		}
 		cfg = config.DefaultConfig()
 	}
 
@@ -417,7 +420,7 @@ func unproxyableReason(command string) string {
 	case "cd", "chdir", "pushd", "popd":
 		return "it must run in the parent shell to change directory"
 	case "source", ".":
-		return "it must run in the parent shell to modify the environment"
+		return "it must run in the parent shell to execute in the current context"
 	case "export", "unset", "alias", "unalias", "readonly", "declare", "typeset", "local", "shift", "read", "mapfile", "readarray", "let", "getopts":
 		return "it must run in the parent shell to modify the environment"
 	case "set", "shopt", "setopt", "unsetopt", "emulate":
