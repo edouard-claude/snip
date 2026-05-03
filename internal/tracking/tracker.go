@@ -3,9 +3,12 @@ package tracking
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+	"time"
 )
 
 // Tracker manages token savings tracking in SQLite.
@@ -44,13 +47,17 @@ func (t *Tracker) ensureOpen() error {
 			return
 		}
 
-		db, err := sql.Open("sqlite", t.dbPath)
+		db, err := sql.Open("sqlite", buildDSN(t.dbPath))
 		if err != nil {
 			t.initErr = fmt.Errorf("open db: %w", err)
 			return
 		}
+		// SQLite tolerates one writer at a time; pinning the pool to a single
+		// connection avoids in-process contention while busy_timeout handles
+		// cross-process contention.
+		db.SetMaxOpenConns(1)
 
-		if _, err := db.Exec(createTableSQL); err != nil {
+		if err := execWithBusyRetry(db, createTableSQL); err != nil {
 			_ = db.Close()
 			t.initErr = fmt.Errorf("create table: %w", err)
 			return
@@ -59,6 +66,39 @@ func (t *Tracker) ensureOpen() error {
 		t.db = db
 	})
 	return t.initErr
+}
+
+// buildDSN constructs a modernc.org/sqlite DSN with WAL journaling and a 5s
+// busy timeout so concurrent snip processes wait for locks instead of failing.
+func buildDSN(dbPath string) string {
+	q := url.Values{}
+	q.Add("_pragma", "busy_timeout(5000)")
+	q.Add("_pragma", "journal_mode(WAL)")
+	q.Add("_pragma", "synchronous(NORMAL)")
+	return "file:" + dbPath + "?" + q.Encode()
+}
+
+// execWithBusyRetry runs an Exec, retrying on SQLITE_BUSY with exponential
+// backoff. busy_timeout already covers most contention, but WAL setup itself
+// can briefly contend before it takes effect.
+func execWithBusyRetry(db *sql.DB, query string, args ...any) error {
+	var err error
+	for attempt := range 3 {
+		_, err = db.Exec(query, args...)
+		if err == nil || !isBusyErr(err) {
+			return err
+		}
+		time.Sleep(time.Duration(50*(1<<attempt)) * time.Millisecond)
+	}
+	return err
+}
+
+func isBusyErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "SQLITE_BUSY") || strings.Contains(s, "database is locked")
 }
 
 // Track records a filtered command execution.

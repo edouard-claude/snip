@@ -4,6 +4,7 @@ package tracking
 
 import (
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -187,6 +188,81 @@ func TestGetMonthly(t *testing.T) {
 		t.Errorf("saved = %d, want 1000", monthly[0].SavedTokens)
 	}
 }
+
+// TestConcurrentTrack simulates two snip processes writing to the same DB
+// (issue #49). With WAL + busy_timeout in place, no SQLITE_BUSY errors should
+// surface and every Track call must persist.
+func TestConcurrentTrack(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "concurrent.db")
+
+	const trackers = 2
+	const goroutines = 25
+	const inserts = 10
+
+	ts := make([]*Tracker, trackers)
+	for i := range trackers {
+		tr, err := NewTracker(dbPath)
+		if err != nil {
+			t.Fatalf("new tracker %d: %v", i, err)
+		}
+		ts[i] = tr
+		t.Cleanup(func() { _ = tr.Close() })
+	}
+
+	var wg sync.WaitGroup
+	errs := make(chan error, trackers*goroutines*inserts)
+
+	for _, tr := range ts {
+		for g := range goroutines {
+			wg.Add(1)
+			go func(tr *Tracker, g int) {
+				defer wg.Done()
+				for i := range inserts {
+					if err := tr.Track("cmd", "snip cmd", 100, 30, int64(g*inserts+i)); err != nil {
+						errs <- err
+						return
+					}
+				}
+			}(tr, g)
+		}
+	}
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		t.Errorf("track: %v", err)
+	}
+
+	summary, err := ts[0].GetSummary()
+	if err != nil {
+		t.Fatalf("summary: %v", err)
+	}
+	want := trackers * goroutines * inserts
+	if summary.TotalCommands != want {
+		t.Errorf("total commands = %d, want %d", summary.TotalCommands, want)
+	}
+}
+
+func TestIsBusyErr(t *testing.T) {
+	tests := []struct {
+		err  error
+		want bool
+	}{
+		{nil, false},
+		{errString("some other error"), false},
+		{errString("database is locked (5) (SQLITE_BUSY)"), true},
+		{errString("database is locked"), true},
+	}
+	for _, tt := range tests {
+		if got := isBusyErr(tt.err); got != tt.want {
+			t.Errorf("isBusyErr(%v) = %v, want %v", tt.err, got, tt.want)
+		}
+	}
+}
+
+type errString string
+
+func (e errString) Error() string { return string(e) }
 
 func TestDBPath(t *testing.T) {
 	t.Setenv("SNIP_DB_PATH", "/custom/path.db")
