@@ -4,6 +4,7 @@ description: "Condensed g++ output: errors and warnings"
 
 match:
   command: "g++"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

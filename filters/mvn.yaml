@@ -4,6 +4,7 @@ description: "Condensed maven output: build result and errors"
 
 match:
   command: "mvn"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

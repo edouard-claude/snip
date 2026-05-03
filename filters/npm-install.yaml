@@ -4,6 +4,7 @@ description: "Condensed npm output: install summary and errors only"
 
 match:
   command: "npm"
+  exclude_flags: ["--version", "-v"]
 
 streams:
   - stdout

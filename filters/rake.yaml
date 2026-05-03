@@ -4,6 +4,7 @@ description: "Condensed rake output: task results and errors"
 
 match:
   command: "rake"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

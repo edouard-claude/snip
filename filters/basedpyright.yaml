@@ -4,6 +4,7 @@ description: "Condensed basedpyright output: type errors"
 
 match:
   command: "basedpyright"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

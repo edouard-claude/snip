@@ -4,7 +4,7 @@ description: "Condensed eslint output: file errors and summary"
 
 match:
   command: "eslint"
-  exclude_flags: ["-f", "--format"]
+  exclude_flags: ["-f", "--format", "--version"]
 
 streams:
   - stdout

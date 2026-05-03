@@ -4,6 +4,7 @@ description: "Condensed gradle output: build result and errors"
 
 match:
   command: "gradle"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

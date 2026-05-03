@@ -4,7 +4,7 @@ description: "Condensed jest output: suite results, assertion details, and summa
 
 match:
   command: "jest"
-  exclude_flags: ["--json", "--verbose"]
+  exclude_flags: ["--json", "--verbose", "--version"]
 
 streams:
   - stdout

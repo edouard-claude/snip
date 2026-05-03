@@ -4,6 +4,7 @@ description: "Condensed terraform output: plan changes and errors"
 
 match:
   command: "terraform"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

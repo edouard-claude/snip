@@ -4,6 +4,7 @@ description: "Condensed tsc output: type errors and summary"
 
 match:
   command: "tsc"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

@@ -4,6 +4,7 @@ description: "Condensed OpenTofu output: plan changes and errors"
 
 match:
   command: "tofu"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

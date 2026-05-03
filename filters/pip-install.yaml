@@ -4,6 +4,7 @@ description: "Condensed pip output: install result and errors only"
 
 match:
   command: "pip"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

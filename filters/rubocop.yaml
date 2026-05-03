@@ -4,6 +4,7 @@ description: "Condensed rubocop output: offenses by file"
 
 match:
   command: "rubocop"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

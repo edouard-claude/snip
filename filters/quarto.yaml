@@ -4,6 +4,7 @@ description: "Condensed quarto output: render status"
 
 match:
   command: "quarto"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

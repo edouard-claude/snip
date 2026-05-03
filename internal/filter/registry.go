@@ -29,12 +29,22 @@ func NewRegistry(filters []Filter) *Registry {
 
 // Match finds the first filter matching the given command, subcommand, and args.
 func (r *Registry) Match(command, subcommand string, args []string) *Filter {
+	// Include subcommand in flag matching so that exclude_flags like
+	// "--version" are detected even when they appear as the first arg
+	// (which pipeline.go extracts as subcommand).
+	allArgs := args
+	if subcommand != "" {
+		allArgs = make([]string, 0, len(args)+1)
+		allArgs = append(allArgs, subcommand)
+		allArgs = append(allArgs, args...)
+	}
+
 	// Try exact match first (command:subcommand)
 	if subcommand != "" {
 		key := command + ":" + subcommand
 		if candidates, ok := r.byKey[key]; ok {
 			for i := range candidates {
-				if matchesFlags(&candidates[i], args) {
+				if matchesFlags(&candidates[i], allArgs) {
 					return &candidates[i]
 				}
 			}
@@ -44,7 +54,7 @@ func (r *Registry) Match(command, subcommand string, args []string) *Filter {
 	// Try command-only match
 	if candidates, ok := r.byKey[command]; ok {
 		for i := range candidates {
-			if matchesFlags(&candidates[i], args) {
+			if matchesFlags(&candidates[i], allArgs) {
 				return &candidates[i]
 			}
 		}

@@ -4,6 +4,7 @@ description: "Condensed rustc output: errors and warnings with locations"
 
 match:
   command: "rustc"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

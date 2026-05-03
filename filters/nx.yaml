@@ -4,6 +4,7 @@ description: "Condensed nx output: task results summary"
 
 match:
   command: "nx"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

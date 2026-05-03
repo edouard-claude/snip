@@ -4,6 +4,7 @@ description: "Condensed docker build: step names, final result, and errors"
 
 match:
   command: "docker"
+  exclude_flags: ["--version", "-v"]
 
 streams:
   - stdout

@@ -4,6 +4,7 @@ description: "Condensed prisma output: migration and generation status"
 
 match:
   command: "prisma"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

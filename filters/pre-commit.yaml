@@ -4,6 +4,7 @@ description: "Condensed pre-commit output: hook results"
 
 match:
   command: "pre-commit"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

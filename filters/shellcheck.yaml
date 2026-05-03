@@ -4,6 +4,7 @@ description: "Condensed shellcheck output: warnings by file"
 
 match:
   command: "shellcheck"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

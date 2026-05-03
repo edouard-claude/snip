@@ -4,6 +4,7 @@ description: "Condensed ansible-playbook: task results and recap"
 
 match:
   command: "ansible-playbook"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout
