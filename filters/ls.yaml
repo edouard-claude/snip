@@ -66,3 +66,18 @@ tests:
       Apr 28 10:00  README.md  1234
       json: 1
       md: 1
+  - name: "cygwin actual user output with ACL+ marker and year column"
+    input: |
+      total 104617
+      drwxrwx---+  1 jspelletier     Domain Users        0 Apr 28 09:19 .
+      drwxrwx---+  1 jspelletier     Domain Users        0 Dec 11 10:20 ..
+      -r-xr-x---+  2 jspelletier     Domain Users     8429 Jan 30  2024 .clang-format
+      drwxrwx---+  1 jspelletier     Domain Users        0 Apr 23 14:13 .claude
+      -r-xr-x---+  1 jspelletier     Domain Users     9020 Jul 22  2025 .editorconfig
+      -rwxrwx---+  1 jspelletier     Domain Users      171 Apr 23 13:47 .mcp.json
+    expected: |
+      Jan 30  2024  .clang-format  8429
+      Apr 23 14:13  .claude  0
+      Jul 22  2025  .editorconfig  9020
+      Apr 23 13:47  .mcp.json  171
+      json: 1

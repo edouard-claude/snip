@@ -153,6 +153,14 @@ func ApplyPipeline(f *filter.Filter, input string) (string, error) {
 	if len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	}
+	// Strip CR from CRLF line endings so anchors like $ and patterns like \.\.?$
+	// behave correctly when the wrapped tool emits Windows-style line endings
+	// (e.g. cygwin's ls.exe under cmd.exe).
+	for i, l := range lines {
+		if len(l) > 0 && l[len(l)-1] == '\r' {
+			lines[i] = l[:len(l)-1]
+		}
+	}
 
 	result := filter.ActionResult{
 		Lines:    lines,

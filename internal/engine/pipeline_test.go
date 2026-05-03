@@ -30,6 +30,38 @@ func TestApplyPipelineKeepLines(t *testing.T) {
 	}
 }
 
+func TestApplyPipelineStripsCRFromCRLFLineEndings(t *testing.T) {
+	// Regression: cygwin's ls.exe under cmd.exe emits CRLF line endings.
+	// Without CR stripping, "$" anchors do not match (line ends with \r),
+	// so dot-entry removal fails, and reformatted lines carry a trailing CR
+	// into captured filenames — which corrupts the rendered output. (#44)
+	f := &filter.Filter{
+		Name: "test",
+		Pipeline: filter.Pipeline{
+			{ActionName: "remove_lines", Params: map[string]any{"pattern": `\.$`}},
+			{ActionName: "replace", Params: map[string]any{
+				"pattern":     `^name\s+(\S+)$`,
+				"replacement": "[$1]",
+			}},
+		},
+	}
+
+	input := "skip me .\r\nname .mcp.json\r\nname README.md\r\n"
+	out, err := ApplyPipeline(f, input)
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if strings.Contains(out, "\r") {
+		t.Errorf("output still contains CR: %q", out)
+	}
+	if strings.Contains(out, "skip me") {
+		t.Errorf("dot-entry not removed (anchors broken by CR): %q", out)
+	}
+	if !strings.Contains(out, "[.mcp.json]") {
+		t.Errorf("expected reformatted .mcp.json, got: %q", out)
+	}
+}
+
 func TestApplyPipelineChained(t *testing.T) {
 	f := &filter.Filter{
 		Name: "test",
