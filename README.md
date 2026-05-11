@@ -147,7 +147,7 @@ snip integrates with every major AI coding assistant. One binary, universal comp
 | **Cursor** | `snip init --agent cursor` | beforeShellExecution hook (native) |
 | **GitHub Copilot** | `snip init --agent copilot` | .github/copilot-instructions.md |
 | **Gemini CLI** | `snip init --agent gemini` | GEMINI.md prompt injection |
-| **Codex (OpenAI)** | `snip init --agent codex` | AGENTS.md prompt injection |
+| **Codex (OpenAI)** | `snip init --agent codex` | PreToolUse hook (native, deny-with-suggestion) |
 | **Windsurf** | `snip init --agent windsurf` | .windsurfrules prompt injection |
 | **Cline / Roo Code** | `snip init --agent cline` | .clinerules prompt injection |
 | **Kilo Code** | `snip init --agent kilocode` | .kilocode/rules/ prompt injection |
@@ -182,12 +182,31 @@ This patches `~/.cursor/hooks.json` with a `beforeShellExecution` hook. Works th
 snip init --agent cursor --uninstall   # remove the hook
 ```
 
-### Copilot / Gemini / Codex / Windsurf / Cline / Kilo Code / Antigravity
+### Codex
+
+```bash
+snip init --agent codex
+```
+
+This patches `~/.codex/hooks.json` with a `PreToolUse` hook and enables `[features].codex_hooks = true` in `~/.codex/config.toml`. Requires a recent Codex CLI that supports the `codex_hooks` feature flag.
+
+Codex cannot rewrite commands in place (tracked upstream at [openai/codex#18491](https://github.com/openai/codex/issues/18491)), so snip responds with `permissionDecision: "deny"` and a suggestion to re-run the command via `snip run --`. When `updatedInput` lands upstream, snip will switch to transparent rewrite.
+
+For older Codex releases that don't support hooks, fall back to the legacy prompt-injection mode:
+
+```bash
+snip init --agent codex --mode prompt   # creates AGENTS.md instead
+```
+
+```bash
+snip init --agent codex --uninstall     # remove the hook (and any legacy AGENTS.md)
+```
+
+### Copilot / Gemini / Windsurf / Cline / Kilo Code / Antigravity
 
 ```bash
 snip init --agent copilot      # creates .github/copilot-instructions.md
 snip init --agent gemini       # creates GEMINI.md
-snip init --agent codex        # creates AGENTS.md
 snip init --agent windsurf     # creates .windsurfrules
 snip init --agent cline        # creates .clinerules
 snip init --agent kilocode     # creates .kilocode/rules/snip-rules.md
