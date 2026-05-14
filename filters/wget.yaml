@@ -4,6 +4,7 @@ description: "Condensed wget output: download summary"
 
 match:
   command: "wget"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

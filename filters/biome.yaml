@@ -4,6 +4,7 @@ description: "Condensed biome output: lint/format diagnostics"
 
 match:
   command: "biome"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

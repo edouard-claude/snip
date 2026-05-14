@@ -4,6 +4,7 @@ description: "Condensed spring-boot output: startup and errors"
 
 match:
   command: "spring-boot"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

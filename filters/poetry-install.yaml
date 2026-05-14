@@ -4,6 +4,7 @@ description: "Condensed poetry output: install summary"
 
 match:
   command: "poetry"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

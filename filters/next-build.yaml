@@ -4,6 +4,7 @@ description: "Condensed next.js build output: pages and errors"
 
 match:
   command: "next"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

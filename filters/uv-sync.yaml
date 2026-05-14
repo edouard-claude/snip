@@ -4,6 +4,7 @@ description: "Condensed uv output: install summary"
 
 match:
   command: "uv"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

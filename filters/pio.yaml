@@ -4,6 +4,7 @@ description: "Condensed PlatformIO output: build result"
 
 match:
   command: "pio"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

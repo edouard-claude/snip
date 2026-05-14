@@ -4,6 +4,7 @@ description: "Condensed playwright output: test results and failures"
 
 match:
   command: "playwright"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

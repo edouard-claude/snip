@@ -4,6 +4,7 @@ description: "Condensed turborepo output: task results summary"
 
 match:
   command: "turbo"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

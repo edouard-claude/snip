@@ -4,6 +4,7 @@ description: "Condensed trunk build output"
 
 match:
   command: "trunk"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

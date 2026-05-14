@@ -4,6 +4,7 @@ description: "Condensed vitest output: test results and failures"
 
 match:
   command: "vitest"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

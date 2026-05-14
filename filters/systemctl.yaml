@@ -4,6 +4,7 @@ description: "Condensed systemctl output: service status"
 
 match:
   command: "systemctl"
+  exclude_flags: ["--version", "-V"]
 
 pipeline:
   - action: "strip_ansi"

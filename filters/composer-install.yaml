@@ -4,6 +4,7 @@ description: "Condensed composer output: install summary"
 
 match:
   command: "composer"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

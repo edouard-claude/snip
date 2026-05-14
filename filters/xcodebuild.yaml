@@ -4,6 +4,7 @@ description: "Condensed xcodebuild output: build result and errors"
 
 match:
   command: "xcodebuild"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

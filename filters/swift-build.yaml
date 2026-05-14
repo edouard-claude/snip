@@ -4,6 +4,7 @@ description: "Condensed swift build output: errors and warnings"
 
 match:
   command: "swift"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout
