@@ -4,6 +4,7 @@ description: "Condensed oxlint output: lint issues"
 
 match:
   command: "oxlint"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

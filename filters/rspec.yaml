@@ -4,7 +4,7 @@ description: "Condensed RSpec output with pass/fail summary"
 
 match:
   command: "rspec"
-  exclude_flags: ["--format", "-f"]
+  exclude_flags: ["--format", "-f", "--version", "-V"]
 
 pipeline:
   - action: "keep_lines"

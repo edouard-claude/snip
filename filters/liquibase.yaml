@@ -4,6 +4,7 @@ description: "Condensed liquibase output: migration status"
 
 match:
   command: "liquibase"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

@@ -4,6 +4,7 @@ description: "Condensed rsync output: transfer summary"
 
 match:
   command: "rsync"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout

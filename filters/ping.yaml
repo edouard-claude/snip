@@ -4,6 +4,7 @@ description: "Condensed ping output: statistics only"
 
 match:
   command: "ping"
+  exclude_flags: ["--version", "-V"]
 
 pipeline:
   - action: "keep_lines"

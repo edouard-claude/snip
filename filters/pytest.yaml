@@ -4,7 +4,7 @@ description: "Condensed pytest output: failures with locations and summary line"
 
 match:
   command: "pytest"
-  exclude_flags: ["--tb=no", "--co", "--collect-only"]
+  exclude_flags: ["--tb=no", "--co", "--collect-only", "--version", "-V"]
 
 inject:
   args: ["--tb=line", "-q"]

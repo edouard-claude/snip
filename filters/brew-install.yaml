@@ -4,6 +4,7 @@ description: "Condensed brew output: install/update summary"
 
 match:
   command: "brew"
+  exclude_flags: ["--version", "-V"]
 
 streams:
   - stdout
