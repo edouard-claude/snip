@@ -15,7 +15,7 @@ The binary (snip) is the engine. Filters are data files. The two evolve independ
 ```
 cmd/snip/main.go        # Entry point
 embed.go                # Embedded default filters (go:embed)
-filters/*.yaml          # Declarative filter definitions (126 filters)
+filters/*.yaml          # Declarative filter definitions (127 filters)
 internal/
   cli/                  # CLI routing, flag parsing
   config/               # TOML config loading (~/.config/snip/config.toml)

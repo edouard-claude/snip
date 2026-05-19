@@ -91,15 +91,18 @@ func ParseSegment(segment string) (prefix, envVars, bareCmd string) {
 }
 
 // BaseCommand extracts the first word (executable name) from a command string.
+// Strips a leading "./" so that wrapper scripts invoked from the project root
+// (e.g. ./gradlew, ./mvnw) match filters keyed on the bare name.
 func BaseCommand(cmd string) string {
 	trimmed := strings.TrimLeft(cmd, " \t")
-	// Find first space or tab
+	end := len(trimmed)
 	for i := 0; i < len(trimmed); i++ {
 		if trimmed[i] == ' ' || trimmed[i] == '\t' {
-			return trimmed[:i]
+			end = i
+			break
 		}
 	}
-	return trimmed
+	return strings.TrimPrefix(trimmed[:end], "./")
 }
 
 // isEnvVarName checks if s is a valid environment variable name: [A-Za-z_][A-Za-z0-9_]*
