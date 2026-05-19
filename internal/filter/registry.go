@@ -29,6 +29,10 @@ func NewRegistry(filters []Filter) *Registry {
 
 // Match finds the first filter matching the given command, subcommand, and args.
 func (r *Registry) Match(command, subcommand string, args []string) *Filter {
+	// Strip a leading "./" so wrapper invocations (e.g. ./gradlew) match
+	// filters keyed on the bare name.
+	command = strings.TrimPrefix(command, "./")
+
 	// Include subcommand in flag matching so that exclude_flags like
 	// "--version" are detected even when they appear as the first arg
 	// (which pipeline.go extracts as subcommand).
@@ -118,6 +122,7 @@ func (r *Registry) ShouldInject(f *Filter, args []string) ([]string, bool) {
 // and subcommand, regardless of flag constraints. Use this to distinguish
 // "no filter at all" from "filter exists but was excluded by flags".
 func (r *Registry) HasAnyFilter(command, subcommand string) bool {
+	command = strings.TrimPrefix(command, "./")
 	if subcommand != "" {
 		if _, ok := r.byKey[command+":"+subcommand]; ok {
 			return true
@@ -132,6 +137,7 @@ func (r *Registry) HasAnyFilter(command, subcommand string) bool {
 // avoid the misleading "no filter for git" hint when "git" has filters for
 // other subcommands (e.g. git-commit) but not for the one being run.
 func (r *Registry) HasAnyFilterForCommand(command string) bool {
+	command = strings.TrimPrefix(command, "./")
 	if _, ok := r.byKey[command]; ok {
 		return true
 	}

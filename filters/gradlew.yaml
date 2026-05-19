@@ -1,0 +1,24 @@
+name: "gradlew"
+version: 1
+description: "Condensed gradle wrapper output: build result and errors"
+
+match:
+  command: "gradlew"
+  exclude_flags: ["--version", "-V"]
+
+streams:
+  - stdout
+  - stderr
+
+pipeline:
+  - action: "strip_ansi"
+  - action: "remove_lines"
+    pattern: "(^> Task |^\\s*$|^Downloading|^\\.\\.\\.|^Starting)"
+  - action: "keep_lines"
+    pattern: "(BUILD|FAILURE|ERROR|error:|warning:|FAILED|UP-TO-DATE|actionable|Test result)"
+  - action: "truncate_lines"
+    max: 120
+  - action: "head"
+    n: 40
+
+on_error: "passthrough"

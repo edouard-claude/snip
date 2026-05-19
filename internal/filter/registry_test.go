@@ -33,6 +33,7 @@ func TestRegistryMatch(t *testing.T) {
 		{"go", "test", nil, "go-test", false},
 		{"git", "push", nil, "", true},
 		{"npm", "install", nil, "", true},
+		{"./go", "test", nil, "go-test", false},
 	}
 
 	for _, tt := range tests {
@@ -201,6 +202,25 @@ func TestHasAnyFilterForCommand(t *testing.T) {
 	})
 	if !regCmdOnly.HasAnyFilterForCommand("npm") {
 		t.Error("HasAnyFilterForCommand should return true for npm (command-only filter)")
+	}
+}
+
+func TestRegistryDotSlashWrapper(t *testing.T) {
+	// Wrapper scripts invoked from the project root (./gradlew, ./mvnw) must
+	// match filters keyed on the bare name.
+	filters := []Filter{
+		{Name: "gradlew", Version: 1, Match: Match{Command: "gradlew"}, OnError: "passthrough"},
+	}
+	reg := NewRegistry(filters)
+
+	if f := reg.Match("./gradlew", "", nil); f == nil || f.Name != "gradlew" {
+		t.Errorf("Match(./gradlew) should resolve to gradlew filter, got %v", f)
+	}
+	if !reg.HasAnyFilter("./gradlew", "") {
+		t.Error("HasAnyFilter(./gradlew) should return true")
+	}
+	if !reg.HasAnyFilterForCommand("./gradlew") {
+		t.Error("HasAnyFilterForCommand(./gradlew) should return true")
 	}
 }
 

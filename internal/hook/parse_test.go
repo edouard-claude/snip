@@ -79,6 +79,8 @@ func TestBaseCommand(t *testing.T) {
 		{"empty", "", ""},
 		{"path", "/usr/bin/git status", "/usr/bin/git"},
 		{"quoted path", `"/usr/local/bin/snip" -- git`, `"/usr/local/bin/snip"`},
+		{"dot slash wrapper", "./gradlew build", "gradlew"},
+		{"dot slash with leading space", "  ./mvnw clean", "mvnw"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

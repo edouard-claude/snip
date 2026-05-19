@@ -165,7 +165,7 @@ snip init
 
 This installs a `PreToolUse` hook that transparently rewrites supported commands. Claude Code never sees the substitution -- it receives compressed output as if the original command produced it.
 
-Supported commands: 126 filters covering git, go, cargo, npm, yarn, pnpm, docker, kubectl, terraform, aws, gh, and 80+ more tools.
+Supported commands: 127 filters covering git, go, cargo, npm, yarn, pnpm, docker, kubectl, terraform, aws, gh, and 80+ more tools.
 
 ```bash
 snip init --uninstall   # remove the hook
@@ -316,9 +316,9 @@ pipeline:
 on_error: "passthrough"
 ```
 
-### 126 Built-in Filters
+### 127 Built-in Filters
 
-snip ships with **126 declarative YAML filters** covering all major developer tools:
+snip ships with **127 declarative YAML filters** covering all major developer tools:
 
 | Category | Filters |
 |----------|---------|
@@ -332,7 +332,7 @@ snip ships with **126 declarative YAML filters** covering all major developer to
 | **.NET** (3) | dotnet build/test/format |
 | **Docker/K8s** (7) | docker build/ps/images/logs/compose, kubectl get/logs |
 | **Cloud/Infra** (6) | terraform, tofu, helm, ansible-playbook, gcloud, aws |
-| **Build tools** (12) | make, gcc, g++, gradle, mvn, swift, xcodebuild, just, task, pio, trunk, mise |
+| **Build tools** (13) | make, gcc, g++, gradle, gradlew, mvn, swift, xcodebuild, just, task, pio, trunk, mise |
 | **Files/Search** (7) | ls, find, grep, rg, diff, wc, tree |
 | **Linting** (5) | shellcheck, hadolint, markdownlint, yamllint, pre-commit |
 | **Package managers** (4) | brew, composer, poetry, uv |
