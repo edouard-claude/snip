@@ -12,6 +12,7 @@ import (
 var envVarRe = regexp.MustCompile(`\$\{env\.(\w+)\}`)
 
 type Config struct {
+	Mode     string         `toml:"mode"` // "user" (default) or "project"
 	Tracking TrackingConfig `toml:"tracking"`
 	Display  DisplayConfig  `toml:"display"`
 	Filters  FiltersConfig  `toml:"filters"`
@@ -29,8 +30,34 @@ type DisplayConfig struct {
 }
 
 type FiltersConfig struct {
-	Dir    any             `toml:"dir"`
-	Enable map[string]bool `toml:"enable"`
+	Dir      any                       `toml:"dir"`
+	Enable   map[string]bool           `toml:"enable"`
+	Global   FilterGlobalConfig        `toml:"global"`
+	Override map[string]FilterOverride `toml:"override"`
+	Bypass   FilterBypassConfig        `toml:"bypass"`
+}
+
+// FilterGlobalConfig applies to all filters in the pipeline.
+type FilterGlobalConfig struct {
+	MaxLines       int    `toml:"max_lines"`        // 0 = unlimited
+	MaxLineLength  int    `toml:"max_line_length"`  // 0 = unlimited
+	MaxOutputBytes int    `toml:"max_output_bytes"` // 0 = unlimited
+	StreamMode     string `toml:"stream_mode"`      // "filter" | "full"
+}
+
+// FilterOverride overrides specific pipeline action parameters for a named filter.
+type FilterOverride struct {
+	Head          int    `toml:"head"`
+	Tail          int    `toml:"tail"`
+	TruncateLines int    `toml:"truncate_lines"`
+	KeepLines     string `toml:"keep_lines"`
+	RemoveLines   string `toml:"remove_lines"`
+	StreamMode    string `toml:"stream_mode"` // "full" = skip the entire pipeline
+}
+
+// FilterBypassConfig contains commands that should always bypass filtering.
+type FilterBypassConfig struct {
+	Commands []string `toml:"commands"`
 }
 
 // Dirs returns the filter directories as a normalized string slice.
@@ -181,6 +208,83 @@ func expandEnvVars(s string) string {
 		name := match[6 : len(match)-1]
 		return os.Getenv(name)
 	})
+}
+
+// projectConfigPath walks upward from the current working directory looking
+// for a .snip/config.toml file. Returns the first match found (closest to
+// CWD takes priority). Returns an empty string if no project config exists.
+func projectConfigPath() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for dir := cwd; dir != "/" && dir != "."; dir = filepath.Dir(dir) {
+		cfg := filepath.Join(dir, ".snip", "config.toml")
+		if _, err := os.Stat(cfg); err == nil {
+			return cfg
+		}
+	}
+	return ""
+}
+
+// LoadMerged loads the user config, then layers the project config on top.
+// When mode == "project", the project config's filter settings override the
+// user's. When mode == "user" (default), user settings take priority.
+func LoadMerged() (*Config, error) {
+	user, err := Load()
+	if err != nil {
+		return DefaultConfig(), nil
+	}
+
+	projectPath := projectConfigPath()
+	if projectPath == "" {
+		return user, nil // no project config — user only
+	}
+
+	project := DefaultConfig()
+	data, err := os.ReadFile(projectPath)
+	if err != nil {
+		return user, nil
+	}
+	if err := toml.Unmarshal(data, project); err != nil {
+		return user, nil
+	}
+
+	// Default mode is "user" — developer's personal config wins conflicts
+	merged := user
+	merged.Mode = project.Mode
+
+	// When project mode is active, project overrides user for filter sections
+	if project.Mode == "project" {
+		// Enable/disable: project keys win for shared names
+		for k, v := range project.Filters.Enable {
+			merged.Filters.Enable[k] = v
+		}
+		// Global limits: project wins entirely
+		if project.Filters.Global.MaxLines > 0 || project.Filters.Global.StreamMode != "" {
+			merged.Filters.Global = project.Filters.Global
+		}
+		// Per-filter overrides: project wins
+		if project.Filters.Override != nil {
+			if merged.Filters.Override == nil {
+				merged.Filters.Override = make(map[string]FilterOverride)
+			}
+			for k, v := range project.Filters.Override {
+				merged.Filters.Override[k] = v
+			}
+		}
+	}
+
+	// Bypass list merges from both sides (no override)
+	merged.Filters.Bypass.Commands = append(user.Filters.Bypass.Commands,
+		project.Filters.Bypass.Commands...)
+
+	return merged, nil
+}
+
+// expandDir tries to umarshal array dir (existing, unchanged).
+func expandDir(data []byte, cfg *Config) bool {
+	return tryUnmarshalArrayDir(data, cfg)
 }
 
 func configPath() string {

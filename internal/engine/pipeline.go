@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/edouard-claude/snip/internal/config"
 	"github.com/edouard-claude/snip/internal/filter"
 	"github.com/edouard-claude/snip/internal/tee"
 	"github.com/edouard-claude/snip/internal/tracking"
@@ -20,6 +21,7 @@ type Pipeline struct {
 	UltraCompact  bool
 	QuietNoFilter bool
 	FilterEnabled map[string]bool
+	Config        *config.Config // merged user+project config (nil if not loaded)
 }
 
 // Run executes a command through the full pipeline.
@@ -30,6 +32,16 @@ func (p *Pipeline) Run(command string, args []string) int {
 	if len(args) > 0 {
 		subcommand = args[0]
 		filterArgs = args[1:]
+	}
+
+	// Check if command is in the project-level bypass list.
+	// Bypassed commands pass through unfiltered regardless of filter match.
+	if p.Config != nil {
+		for _, cmd := range p.Config.Filters.Bypass.Commands {
+			if cmd == command {
+				return p.Passthrough(command, args)
+			}
+		}
 	}
 
 	// Match filter
@@ -83,6 +95,16 @@ func (p *Pipeline) Run(command string, args []string) int {
 
 	// Build pipeline input from selected streams
 	pipelineInput := buildPipelineInput(f, result)
+
+	// Apply project-level filter overrides to the matched filter pipeline
+	if p.Config != nil {
+		if override, ok := p.Config.Filters.Override[f.Name]; ok {
+			applyOverride(f, &override)
+		}
+		if p.Config.Filters.Global.MaxLines > 0 || p.Config.Filters.Global.MaxLineLength > 0 {
+			applyGlobalLimit(f, &p.Config.Filters.Global)
+		}
+	}
 
 	// Apply filter pipeline
 	filtered, filterErr := ApplyPipeline(f, pipelineInput)
@@ -182,6 +204,59 @@ func ApplyPipeline(f *filter.Filter, input string) (string, error) {
 	}
 
 	return strings.Join(result.Lines, "\n") + "\n", nil
+}
+
+// applyOverride modifies a filter's pipeline actions based on project config
+// overrides. When StreamMode is "full", the entire pipeline is cleared (full
+// passthrough). Otherwise, matching pipeline actions are updated with the
+// override values for head, truncate_lines, keep_lines, and remove_lines.
+func applyOverride(f *filter.Filter, o *config.FilterOverride) {
+	if o.StreamMode == "full" {
+		f.Pipeline = nil
+		return
+	}
+	for i, action := range f.Pipeline {
+		switch action.ActionName {
+		case "head":
+			if o.Head > 0 {
+				f.Pipeline[i].Params["n"] = o.Head
+			}
+		case "tail":
+			if o.Tail > 0 {
+				f.Pipeline[i].Params["n"] = o.Tail
+			}
+		case "truncate_lines":
+			if o.TruncateLines > 0 {
+				f.Pipeline[i].Params["max"] = o.TruncateLines
+			}
+		case "keep_lines":
+			if o.KeepLines != "" {
+				f.Pipeline[i].Params["pattern"] = o.KeepLines
+			}
+		case "remove_lines":
+			if o.RemoveLines != "" {
+				f.Pipeline[i].Params["pattern"] = o.RemoveLines
+			}
+		}
+	}
+}
+
+// applyGlobalLimit appends global limits (max_lines, max_line_length) to
+// the end of a filter's pipeline. These act as a final safety cap on all
+// filtered output.
+func applyGlobalLimit(f *filter.Filter, g *config.FilterGlobalConfig) {
+	if g.MaxLines > 0 {
+		f.Pipeline = append(f.Pipeline, filter.Action{
+			ActionName: "head",
+			Params:     map[string]any{"n": g.MaxLines},
+		})
+	}
+	if g.MaxLineLength > 0 {
+		f.Pipeline = append(f.Pipeline, filter.Action{
+			ActionName: "truncate_lines",
+			Params:     map[string]any{"max": g.MaxLineLength},
+		})
+	}
 }
 
 // buildPipelineInput assembles the text to filter based on the filter's
