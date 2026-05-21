@@ -282,11 +282,6 @@ func LoadMerged() (*Config, error) {
 	return merged, nil
 }
 
-// expandDir tries to umarshal array dir (existing, unchanged).
-func expandDir(data []byte, cfg *Config) bool {
-	return tryUnmarshalArrayDir(data, cfg)
-}
-
 func configPath() string {
 	if p := os.Getenv("SNIP_CONFIG"); p != "" {
 		return p
