@@ -308,6 +308,16 @@ func runPipeline(command string, args []string, flags Flags) int {
 		cfg = config.DefaultConfig()
 	}
 
+	// Load merged user+project config for filter overrides, bypass, and global
+	// limits. Gracefully defaults to user-only if no .snip/config.toml exists.
+	projectCfg, err := config.LoadMerged()
+	if err != nil && flags.Verbose > 0 {
+		fmt.Fprintf(os.Stderr, "snip: project config error: %v\n", err)
+	}
+	if projectCfg == nil {
+		projectCfg = cfg
+	}
+
 	filters, err := filter.LoadAll(cfg.Filters.Dirs())
 	if err != nil {
 		display.PrintError(fmt.Sprintf("load filters: %v", err))
@@ -338,6 +348,7 @@ func runPipeline(command string, args []string, flags Flags) int {
 		UltraCompact:  flags.UltraCompact,
 		QuietNoFilter: cfg.Display.QuietNoFilter,
 		FilterEnabled: cfg.Filters.Enable,
+		Config:        projectCfg,
 	}
 
 	return pipeline.Run(command, args)
