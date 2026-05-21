@@ -479,7 +479,7 @@ func unproxyableReason(command string) string {
 		return "it must run in the parent shell to control flow"
 	case "for", "while", "until", "select":
 		return "it is a shell keyword construct (use snip on individual commands inside the loop)"
-	case "if", "case", "fi", "esac", "then", "elif", "else", "done":
+	case "if", "case", "fi", "esac", "then", "elif", "else", "do", "done":
 		return "it is a shell keyword construct (use snip on individual commands inside the block)"
 	case "wait", "bg", "fg", "disown", "jobs", "suspend":
 		return "it must run in the parent shell to access the job table"
