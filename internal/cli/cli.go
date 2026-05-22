@@ -347,7 +347,7 @@ func runPipeline(command string, args []string, flags Flags) int {
 		Verbose:       flags.Verbose,
 		UltraCompact:  flags.UltraCompact,
 		QuietNoFilter: cfg.Display.QuietNoFilter,
-		FilterEnabled: cfg.Filters.Enable,
+		FilterEnabled: projectCfg.Filters.Enable,
 		Config:        projectCfg,
 	}
 

@@ -257,11 +257,14 @@ func LoadMerged() (*Config, error) {
 	// When project mode is active, project overrides user for filter sections
 	if project.Mode == "project" {
 		// Enable/disable: project keys win for shared names
+		if merged.Filters.Enable == nil {
+			merged.Filters.Enable = make(map[string]bool)
+		}
 		for k, v := range project.Filters.Enable {
 			merged.Filters.Enable[k] = v
 		}
 		// Global limits: project wins entirely
-		if project.Filters.Global.MaxLines > 0 || project.Filters.Global.StreamMode != "" {
+		if project.Filters.Global.MaxLines > 0 || project.Filters.Global.MaxLineLength > 0 || project.Filters.Global.StreamMode != "" {
 			merged.Filters.Global = project.Filters.Global
 		}
 		// Per-filter overrides: project wins

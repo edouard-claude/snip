@@ -96,8 +96,10 @@ func (p *Pipeline) Run(command string, args []string) int {
 	// Build pipeline input from selected streams
 	pipelineInput := buildPipelineInput(f, result)
 
-	// Apply project-level filter overrides to the matched filter pipeline
+	// Apply project-level filter overrides to the matched filter pipeline.
+	// Clone the filter first to avoid mutating the registry's shared pointer.
 	if p.Config != nil {
+		f = f.Clone()
 		if override, ok := p.Config.Filters.Override[f.Name]; ok {
 			applyOverride(f, &override)
 		}
