@@ -123,3 +123,73 @@ pipeline: []
 		t.Errorf("streams = %v", f.Streams)
 	}
 }
+
+func TestFilterCloneDeepCopy(t *testing.T) {
+	original := Filter{
+		Name:    "test-clone",
+		Version: 2,
+		Match:   Match{Command: "git", Subcommand: "log"},
+		OnError: "passthrough",
+		Pipeline: Pipeline{
+			{ActionName: "head", Params: map[string]any{"n": 10}},
+			{ActionName: "keep_lines", Params: map[string]any{"pattern": `\S`}},
+		},
+	}
+
+	clone := original.Clone()
+
+	// Verify value fields
+	if clone.Name != original.Name {
+		t.Errorf("name: got %q, want %q", clone.Name, original.Name)
+	}
+	if clone.Version != original.Version {
+		t.Errorf("version: got %d, want %d", clone.Version, original.Version)
+	}
+
+	// Verify pipeline was deep-copied
+	if len(clone.Pipeline) != len(original.Pipeline) {
+		t.Fatalf("pipeline len: got %d, want %d", len(clone.Pipeline), len(original.Pipeline))
+	}
+	if clone.Pipeline[0].ActionName != original.Pipeline[0].ActionName {
+		t.Errorf("pipeline[0] action: got %q, want %q", clone.Pipeline[0].ActionName, original.Pipeline[0].ActionName)
+	}
+
+	// Mutate clone — original should be unaffected
+	clone.Pipeline[0].Params["n"] = 999
+
+	if original.Pipeline[0].Params["n"] != 10 {
+		t.Errorf("original head n = %v, want 10 (was corrupted by clone mutation)", original.Pipeline[0].Params["n"])
+	}
+	if clone.Pipeline[0].Params["n"] != 999 {
+		t.Errorf("clone head n = %v, want 999", clone.Pipeline[0].Params["n"])
+	}
+
+	// Mutate via applyGlobalLimit on clone — original should stay clean
+	clone.Pipeline = append(clone.Pipeline, Action{ActionName: "truncate_lines", Params: map[string]any{"max": 80}})
+	if len(original.Pipeline) != 2 {
+		t.Errorf("original pipeline len = %d, want 2 (corrupted by clone append)", len(original.Pipeline))
+	}
+	if len(clone.Pipeline) != 3 {
+		t.Errorf("clone pipeline len = %d, want 3", len(clone.Pipeline))
+	}
+}
+
+func TestFilterCloneNil(t *testing.T) {
+	var f *Filter
+	clone := f.Clone()
+	if clone != nil {
+		t.Error("Clone of nil should return nil")
+	}
+}
+
+func TestFilterCloneEmptyPipeline(t *testing.T) {
+	f := Filter{
+		Name:     "test-empty",
+		Match:    Match{Command: "ls"},
+		Pipeline: Pipeline{},
+	}
+	clone := f.Clone()
+	if len(clone.Pipeline) != 0 {
+		t.Errorf("expected empty pipeline, got %d actions", len(clone.Pipeline))
+	}
+}

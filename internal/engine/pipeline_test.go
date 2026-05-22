@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/edouard-claude/snip/internal/config"
 	"github.com/edouard-claude/snip/internal/filter"
 )
 
@@ -274,5 +275,152 @@ func TestPipelineRunSilentWhenSiblingSubcommandHasFilter(t *testing.T) {
 
 	if strings.Contains(buf.String(), "no filter for") {
 		t.Errorf("expected silent stderr when sibling subcommand filter exists, got: %q", buf.String())
+	}
+}
+
+func TestApplyOverrideHead(t *testing.T) {
+	f := filterForTest("test-filter",
+		filter.Pipeline{
+			{ActionName: "keep_lines", Params: map[string]any{"pattern": `\S`}},
+			{ActionName: "head", Params: map[string]any{"n": 10}},
+		},
+	)
+
+	o := config.FilterOverride{Head: 25}
+	applyOverride(&f, &o)
+
+	if f.Pipeline[1].Params["n"] != 25 {
+		t.Errorf("head n = %v, want 25", f.Pipeline[1].Params["n"])
+	}
+}
+
+func TestApplyOverrideStreamModeFull(t *testing.T) {
+	f := filterForTest("test-filter",
+		filter.Pipeline{
+			{ActionName: "keep_lines", Params: map[string]any{"pattern": `\S`}},
+			{ActionName: "head", Params: map[string]any{"n": 10}},
+		},
+	)
+
+	o := config.FilterOverride{StreamMode: "full"}
+	applyOverride(&f, &o)
+
+	if f.Pipeline != nil {
+		t.Errorf("pipeline should be nil after stream_mode=full, got %v", f.Pipeline)
+	}
+}
+
+func TestApplyGlobalLimit(t *testing.T) {
+	f := filterForTest("test-filter",
+		filter.Pipeline{
+			{ActionName: "keep_lines", Params: map[string]any{"pattern": `\S`}},
+		},
+	)
+
+	origLen := len(f.Pipeline)
+	g := config.FilterGlobalConfig{MaxLines: 50, MaxLineLength: 120}
+	applyGlobalLimit(&f, &g)
+
+	if len(f.Pipeline) != origLen+2 {
+		t.Fatalf("pipeline len = %d, want %d", len(f.Pipeline), origLen+2)
+	}
+	lastTwo := f.Pipeline[len(f.Pipeline)-2:]
+	if lastTwo[0].ActionName != "head" || lastTwo[0].Params["n"] != 50 {
+		t.Errorf("expected head(50), got %v", lastTwo[0])
+	}
+	if lastTwo[1].ActionName != "truncate_lines" || lastTwo[1].Params["max"] != 120 {
+		t.Errorf("expected truncate_lines(120), got %v", lastTwo[1])
+	}
+}
+
+func TestApplyOverrideDoesNotMutateRegistry(t *testing.T) {
+	// Verify that Clone() prevents mutations from leaking into the registry.
+	original := filterForTest("test-override",
+		filter.Pipeline{
+			{ActionName: "head", Params: map[string]any{"n": 10}},
+			{ActionName: "tail", Params: map[string]any{"n": 5}},
+		},
+	)
+
+	// Simulate what Pipeline.Run does: match, then clone.
+	cloned := original.Clone()
+
+	o := config.FilterOverride{Head: 99, Tail: 88}
+	applyOverride(cloned, &o)
+
+	// Original should be unchanged
+	if original.Pipeline[0].Params["n"] != 10 {
+		t.Errorf("original head n = %v, want 10 (was corrupted)", original.Pipeline[0].Params["n"])
+	}
+	if original.Pipeline[1].Params["n"] != 5 {
+		t.Errorf("original tail n = %v, want 5 (was corrupted)", original.Pipeline[1].Params["n"])
+	}
+	// Clone should be changed
+	if cloned.Pipeline[0].Params["n"] != 99 {
+		t.Errorf("cloned head n = %v, want 99", cloned.Pipeline[0].Params["n"])
+	}
+	if cloned.Pipeline[1].Params["n"] != 88 {
+		t.Errorf("cloned tail n = %v, want 88", cloned.Pipeline[1].Params["n"])
+	}
+}
+
+func TestApplyGlobalLimitDoesNotMutateRegistry(t *testing.T) {
+	original := filterForTest("test-global",
+		filter.Pipeline{
+			{ActionName: "keep_lines", Params: map[string]any{"pattern": `\S`}},
+		},
+	)
+
+	cloned := original.Clone()
+	origLen := len(original.Pipeline)
+
+	g := config.FilterGlobalConfig{MaxLines: 50, MaxLineLength: 120}
+	applyGlobalLimit(cloned, &g)
+
+	// Original pipeline should still have same length
+	if len(original.Pipeline) != origLen {
+		t.Errorf("original pipeline grew from %d to %d (registry corrupted)", origLen, len(original.Pipeline))
+	}
+	// Clone should have extra actions
+	if len(cloned.Pipeline) != origLen+2 {
+		t.Errorf("cloned pipeline len = %d, want %d", len(cloned.Pipeline), origLen+2)
+	}
+}
+
+func TestBypassCommand(t *testing.T) {
+	// Test that bypass list sends command through passthrough unconditionally.
+	// We use "echo" since it exists everywhere and is test-friendly.
+	f := filterForTest("echo", filter.Pipeline{
+		{ActionName: "keep_lines", Params: map[string]any{"pattern": `\S`}},
+	})
+	reg := filter.NewRegistry([]filter.Filter{f})
+
+	cfg := &config.Config{
+		Filters: config.FiltersConfig{
+			Bypass: config.FilterBypassConfig{
+				Commands: []string{"echo"},
+			},
+		},
+	}
+
+	p := &Pipeline{
+		Registry: reg,
+		Config:   cfg,
+	}
+
+	// "echo" is in bypass — should passthrough (raw output, not filtered)
+	code := p.Run("echo", []string{"hello bypass!"})
+	if code != 0 {
+		t.Errorf("bypass exit code = %d, want 0", code)
+	}
+}
+
+func filterForTest(name string, pipeline filter.Pipeline) filter.Filter {
+	return filter.Filter{
+		Name:     name,
+		Version:  1,
+		Match:    filter.Match{Command: name},
+		Pipeline: pipeline,
+		OnError:  "passthrough",
 	}
 }
