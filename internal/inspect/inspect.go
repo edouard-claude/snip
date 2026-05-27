@@ -106,8 +106,12 @@ func Run(args []string) int {
 		risky := 0
 		for _, f := range appendIssues {
 			short := shortenPath(root, f.File)
-			tag := "SAFE"
-			fmt.Printf("  %s: %s:%d  %s\n", tag, short, f.Line, f.Context)
+			if f.Level == "risky" {
+				fmt.Printf("  RISKY: %s:%d  %s\n", short, f.Line, f.Context)
+				risky++
+			} else {
+				fmt.Printf("  SAFE: %s:%d  %s\n", short, f.Line, f.Context)
+			}
 		}
 		fmt.Printf("  Found: %d risky / %d total\n\n", risky, len(appendIssues))
 	}
