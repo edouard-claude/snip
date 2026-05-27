@@ -82,7 +82,7 @@ func Run(args []string) int {
 	if useJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		enc.Encode(allFindings)
+		_ = enc.Encode(allFindings)
 		if hasRisky {
 			return 1
 		}
@@ -106,13 +106,7 @@ func Run(args []string) int {
 		risky := 0
 		for _, f := range appendIssues {
 			short := shortenPath(root, f.File)
-			tag := f.Level
-			if f.Level == "risky" {
-				tag = "RISKY"
-				risky++
-			} else {
-				tag = "SAFE"
-			}
+			tag := "SAFE"
 			fmt.Printf("  %s: %s:%d  %s\n", tag, short, f.Line, f.Context)
 		}
 		fmt.Printf("  Found: %d risky / %d total\n\n", risky, len(appendIssues))

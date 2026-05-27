@@ -28,6 +28,7 @@ func (a AppendSafetyChecker) Run(dir string) ([]Finding, error) {
 			continue
 		}
 
+		/* #nosec G304 — reading project source files, not user-controlled paths */
 		data, err := os.ReadFile(path)
 		if err != nil {
 			continue

@@ -1,0 +1,45 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - unused
+    - errcheck
+    - gosec
+    - gocritic
+    - prealloc
+    - unconvert
+    - whitespace
+  settings:
+    gosec:
+      excludes:
+        - G104
+    staticcheck:
+      checks:
+        - all
+        - -SA1019
+    prealloc:
+      simple: false
+      range-loops: true
+      for-loops: false
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - unused
+      - path: internal/learn/
+        linters:
+          - gosec
+          - staticcheck
+      - path: internal/hook/
+        linters:
+          - gosec
+
+run:
+  timeout: 2m
+  tests: true
+  modules-download-mode: readonly

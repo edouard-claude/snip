@@ -50,7 +50,3 @@ func resolveRoot() (string, error) {
 		dir = parent
 	}
 }
-
-func readFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
-}

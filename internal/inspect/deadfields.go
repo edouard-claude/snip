@@ -149,7 +149,7 @@ func countAllFieldRefs(dir string, fieldNames map[string]*structField) (counts, 
 		patterns[name] = regexp.MustCompile(`\.` + regexp.QuoteMeta(name) + `\b`)
 	}
 
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			if info != nil && (info.Name() == ".git" || info.Name() == "vendor") {
 				return filepath.SkipDir
@@ -160,6 +160,7 @@ func countAllFieldRefs(dir string, fieldNames map[string]*structField) (counts, 
 			return nil
 		}
 
+		/* #nosec G304,G122 — reading project source files, not user-controlled paths */
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil
