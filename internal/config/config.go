@@ -218,10 +218,14 @@ func projectConfigPath() string {
 	if err != nil {
 		return ""
 	}
-	for dir := cwd; dir != "/" && dir != "."; dir = filepath.Dir(dir) {
+	for dir := cwd; ; dir = filepath.Dir(dir) {
 		cfg := filepath.Join(dir, ".snip", "config.toml")
 		if _, err := os.Stat(cfg); err == nil {
 			return cfg
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break // reached root on this platform
 		}
 	}
 	return ""
