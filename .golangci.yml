@@ -1,0 +1,51 @@
+# golangci-lint configuration for snip
+# Complements "snip inspect" — catches standard Go issues before review.
+# Run: golangci-lint run ./...
+
+linters:
+  enable:
+    - govet          # go vet checks (printf, shadow, etc.)
+    - staticcheck    # advanced static analysis
+    - unused         # unused functions, types, variables
+    - errcheck       # unchecked error returns
+    - gosec          # security issues (G101-G601)
+    - gosimple       # code simplifications
+    - gocritic       # extra checks
+    - prealloc       # suggest slice preallocation
+    - unconvert      # unnecessary type conversions
+    - whitespace     # trailing whitespace
+    - gofmt          # format check
+  disable:
+    - revive         # too noisy for CI
+
+linters-settings:
+  gosec:
+    excludes:
+      - G104           # allow unchecked err in pipe writes (pattern everywhere in snip)
+  staticcheck:
+    checks: ["all", "-SA1019"]  # exclude deprecated warnings for now
+  prealloc:
+    simple: false
+    range-loops: true
+    for-loops: false
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - unused
+    - path: internal/learn/
+      linters:
+        - gosec
+        - staticcheck
+    - path: internal/hook/
+      linters:
+        - gosec
+
+run:
+  timeout: 2m
+  tests: true
+  go: "1.25"
+  modules-download-mode: readonly
