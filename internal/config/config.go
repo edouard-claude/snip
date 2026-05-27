@@ -278,8 +278,10 @@ func LoadMerged() (*Config, error) {
 		}
 	}
 
-	// Bypass list merges from both sides (no override)
-	merged.Filters.Bypass.Commands = append(user.Filters.Bypass.Commands,
+	// Bypass list merges from both sides (no override).
+	// Force fresh slice to avoid reusing user's backing array on double-call.
+	merged.Filters.Bypass.Commands = append([]string{}, user.Filters.Bypass.Commands...)
+	merged.Filters.Bypass.Commands = append(merged.Filters.Bypass.Commands,
 		project.Filters.Bypass.Commands...)
 
 	return merged, nil

@@ -424,3 +424,32 @@ func filterForTest(name string, pipeline filter.Pipeline) filter.Filter {
 		OnError:  "passthrough",
 	}
 }
+
+func TestApplyGlobalLimit_MaxOutputBytes(t *testing.T) {
+	f := &filter.Filter{Pipeline: filter.Pipeline{}}
+	g := &config.FilterGlobalConfig{MaxOutputBytes: 100}
+
+	applyGlobalLimit(f, g)
+
+	if len(f.Pipeline) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(f.Pipeline))
+	}
+	if f.Pipeline[0].ActionName != "truncate_bytes" {
+		t.Errorf("action name = %q, want truncate_bytes", f.Pipeline[0].ActionName)
+	}
+	max, _ := f.Pipeline[0].Params["max"].(int)
+	if max != 100 {
+		t.Errorf("max = %d, want 100", max)
+	}
+}
+
+func TestApplyGlobalLimit_ZeroIsNoOp(t *testing.T) {
+	f := &filter.Filter{Pipeline: filter.Pipeline{}}
+	g := &config.FilterGlobalConfig{} // all zeros
+
+	applyGlobalLimit(f, g)
+
+	if len(f.Pipeline) != 0 {
+		t.Errorf("expected 0 actions for zero limits, got %d", len(f.Pipeline))
+	}
+}

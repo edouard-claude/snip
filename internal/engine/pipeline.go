@@ -103,7 +103,7 @@ func (p *Pipeline) Run(command string, args []string) int {
 		if override, ok := p.Config.Filters.Override[f.Name]; ok {
 			applyOverride(f, &override)
 		}
-		if p.Config.Filters.Global.MaxLines > 0 || p.Config.Filters.Global.MaxLineLength > 0 {
+		if p.Config.Filters.Global.MaxLines > 0 || p.Config.Filters.Global.MaxLineLength > 0 || p.Config.Filters.Global.MaxOutputBytes > 0 {
 			applyGlobalLimit(f, &p.Config.Filters.Global)
 		}
 	}
@@ -243,8 +243,8 @@ func applyOverride(f *filter.Filter, o *config.FilterOverride) {
 	}
 }
 
-// applyGlobalLimit appends global limits (max_lines, max_line_length) to
-// the end of a filter's pipeline. These act as a final safety cap on all
+// applyGlobalLimit appends global limits (max_lines, max_line_length, max_output_bytes)
+// to the end of a filter's pipeline. These act as a final safety cap on all
 // filtered output.
 func applyGlobalLimit(f *filter.Filter, g *config.FilterGlobalConfig) {
 	if g.MaxLines > 0 {
@@ -257,6 +257,12 @@ func applyGlobalLimit(f *filter.Filter, g *config.FilterGlobalConfig) {
 		f.Pipeline = append(f.Pipeline, filter.Action{
 			ActionName: "truncate_lines",
 			Params:     map[string]any{"max": g.MaxLineLength},
+		})
+	}
+	if g.MaxOutputBytes > 0 {
+		f.Pipeline = append(f.Pipeline, filter.Action{
+			ActionName: "truncate_bytes",
+			Params:     map[string]any{"max": g.MaxOutputBytes},
 		})
 	}
 }

@@ -16,6 +16,7 @@ var actions = map[string]ActionFunc{
 	"keep_lines":      keepLines,
 	"remove_lines":    removeLines,
 	"truncate_lines":  truncateLines,
+	"truncate_bytes":  truncateBytes,
 	"strip_ansi":      stripANSI,
 	"head":            head,
 	"tail":            tail,
@@ -139,6 +140,19 @@ func truncateLines(input ActionResult, params map[string]any) (ActionResult, err
 		}
 	}
 	return ActionResult{Lines: out, Metadata: input.Metadata}, nil
+}
+
+func truncateBytes(input ActionResult, params map[string]any) (ActionResult, error) {
+	max := getInt(params, "max", 0)
+	if max <= 0 {
+		return input, nil
+	}
+	joined := strings.Join(input.Lines, "\n")
+	if len(joined) <= max {
+		return input, nil
+	}
+	input.Lines = strings.Split(joined[:max], "\n")
+	return input, nil
 }
 
 func stripANSI(input ActionResult, params map[string]any) (ActionResult, error) {
