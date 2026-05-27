@@ -477,6 +477,9 @@ func unproxyableReason(command string) string {
 		return "it must run in the parent shell to replace the current process"
 	case "exit", "logout", "return", "break", "continue":
 		return "it must run in the parent shell to control flow"
+	case "for", "while", "until", "select", "if", "case",
+		"do", "done", "then", "elif", "else", "fi", "in", "esac":
+		return "it is a shell keyword construct that the parent shell must parse"
 	case "wait", "bg", "fg", "disown", "jobs", "suspend":
 		return "it must run in the parent shell to access the job table"
 	case "bindkey", "bind", "complete", "compopt", "compinit", "zstyle", "autoload", "zmodload", "enable", "disable", "abbr", "functions", "hash", "trap", "umask", "ulimit":
