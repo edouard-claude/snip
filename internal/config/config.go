@@ -1,12 +1,15 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
+
+	"github.com/edouard-claude/snip/internal/trust"
 )
 
 var envVarRe = regexp.MustCompile(`\$\{env\.(\w+)\}`)
@@ -245,13 +248,24 @@ func LoadMerged() (*Config, error) {
 		return user, nil // no project config — user only
 	}
 
+	// Trust gate: project configs must be explicitly trusted via `snip trust`.
+	// Without this guard, any cloned repo could ship a .snip/config.toml that
+	// disables filtering, injects ReDoS regex, or adds bypass commands.
+	store, err := trust.Load()
+	if err != nil {
+		return user, nil // no trust store = no project configs trusted
+	}
+	if !trust.IsTrusted(store, projectPath) {
+		return user, nil // untrusted: silently fall back to user config only
+	}
+
 	project := DefaultConfig()
 	data, err := os.ReadFile(projectPath)
 	if err != nil {
 		return user, nil
 	}
 	if err := toml.Unmarshal(data, project); err != nil {
-		return user, nil
+		return nil, fmt.Errorf("parse project config %s: %w", projectPath, err)
 	}
 
 	// Default mode is "user" — developer's personal config wins conflicts
@@ -268,7 +282,14 @@ func LoadMerged() (*Config, error) {
 			merged.Filters.Enable[k] = v
 		}
 		// Global limits: project wins entirely
-		if project.Filters.Global.MaxLines > 0 || project.Filters.Global.MaxLineLength > 0 || project.Filters.Global.StreamMode != "" {
+		if project.Filters.Global.MaxLines > 0 || project.Filters.Global.MaxLineLength > 0 || project.Filters.Global.MaxOutputBytes > 0 || project.Filters.Global.StreamMode != "" {
+			merged.Filters.Global = project.Filters.Global
+		}
+		for k, v := range project.Filters.Enable {
+			merged.Filters.Enable[k] = v
+		}
+		// Global limits: project wins entirely
+		if project.Filters.Global.MaxLines > 0 || project.Filters.Global.MaxLineLength > 0 || project.Filters.Global.MaxOutputBytes > 0 || project.Filters.Global.StreamMode != "" {
 			merged.Filters.Global = project.Filters.Global
 		}
 		// Per-filter overrides: project wins

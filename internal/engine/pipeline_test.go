@@ -453,3 +453,96 @@ func TestApplyGlobalLimit_ZeroIsNoOp(t *testing.T) {
 		t.Errorf("expected 0 actions for zero limits, got %d", len(f.Pipeline))
 	}
 }
+
+func TestApplyOverrideAppendsWhenActionNotInPipeline(t *testing.T) {
+	f := &filter.Filter{
+		Pipeline: filter.Pipeline{
+			{ActionName: "keep_lines", Params: map[string]any{"pattern": `\S`}},
+		},
+	}
+	o := config.FilterOverride{Head: 25}
+	applyOverride(f, &o)
+
+	if len(f.Pipeline) != 2 {
+		t.Fatalf("pipeline len = %d, want 2", len(f.Pipeline))
+	}
+	last := f.Pipeline[len(f.Pipeline)-1]
+	if last.ActionName != "head" {
+		t.Errorf("last action name = %q, want head", last.ActionName)
+	}
+	if last.Params["n"] != 25 {
+		t.Errorf("head n = %v, want 25", last.Params["n"])
+	}
+}
+
+func TestApplyOverrideAppendsMultipleUnmatchedActions(t *testing.T) {
+	f := &filter.Filter{Pipeline: filter.Pipeline{}}
+	o := config.FilterOverride{Head: 25, TruncateLines: 120, KeepLines: "error|warn"}
+	applyOverride(f, &o)
+
+	if len(f.Pipeline) != 3 {
+		t.Fatalf("pipeline len = %d, want 3", len(f.Pipeline))
+	}
+	names := map[string]bool{}
+	for _, a := range f.Pipeline {
+		names[a.ActionName] = true
+	}
+	for _, want := range []string{"head", "truncate_lines", "keep_lines"} {
+		if !names[want] {
+			t.Errorf("pipeline missing action %q", want)
+		}
+	}
+}
+
+func TestApplyOverrideDoesNotDuplicateExistingActions(t *testing.T) {
+	f := &filter.Filter{
+		Pipeline: filter.Pipeline{
+			{ActionName: "keep_lines", Params: map[string]any{"pattern": `\S`}},
+			{ActionName: "head", Params: map[string]any{"n": 10}},
+		},
+	}
+	o := config.FilterOverride{Head: 25}
+	applyOverride(f, &o)
+
+	if len(f.Pipeline) != 2 {
+		t.Fatalf("pipeline len = %d, want 2 (no duplicate)", len(f.Pipeline))
+	}
+	if f.Pipeline[1].Params["n"] != 25 {
+		t.Errorf("head n = %v, want 25 (updated in place)", f.Pipeline[1].Params["n"])
+	}
+}
+
+func TestApplyOverrideZeroValueIsNoOp(t *testing.T) {
+	f := &filter.Filter{
+		Pipeline: filter.Pipeline{
+			{ActionName: "head", Params: map[string]any{"n": 10}},
+		},
+	}
+	o := config.FilterOverride{Head: 0}
+	applyOverride(f, &o)
+
+	if len(f.Pipeline) != 1 {
+		t.Fatalf("pipeline len = %d, want 1", len(f.Pipeline))
+	}
+	if f.Pipeline[0].Params["n"] != 10 {
+		t.Errorf("head n = %v, want 10 unchanged", f.Pipeline[0].Params["n"])
+	}
+}
+
+func TestApplyOverrideAppendPreservesCloneIsolation(t *testing.T) {
+	original := &filter.Filter{
+		Pipeline: filter.Pipeline{
+			{ActionName: "keep_lines", Params: map[string]any{"pattern": `\S`}},
+		},
+	}
+	clone := original.Clone()
+	o := config.FilterOverride{Head: 25}
+	applyOverride(clone, &o)
+
+	if len(original.Pipeline) != 1 {
+		t.Errorf("original pipeline len = %d, want 1 (should not be mutated)", len(original.Pipeline))
+	}
+	if len(clone.Pipeline) != 2 {
+		t.Errorf("clone pipeline len = %d, want 2", len(clone.Pipeline))
+	}
+}

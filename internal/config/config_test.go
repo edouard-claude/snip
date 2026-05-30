@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/edouard-claude/snip/internal/trust"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -368,6 +370,18 @@ git-diff = false
 		t.Fatal(err)
 	}
 
+	// Trust the project config so the trust gate passes
+	projectCfgPath := filepath.Join(projectDir, ".snip", "config.toml")
+	trustStore := make(trust.Store)
+	hash, err := trust.HashFile(projectCfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trustStore[projectCfgPath] = hash
+	if err := trust.SaveTo(trustStore, filepath.Join(home, ".config", "snip", "trusted.json")); err != nil {
+		t.Fatal(err)
+	}
+
 	t.Setenv("HOME", home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
@@ -424,6 +438,18 @@ max_line_length = 80
 stream_mode = "full"
 `
 	if err := os.WriteFile(filepath.Join(projectDir, ".snip", "config.toml"), []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Trust the project config so the trust gate passes
+	projectCfgPath := filepath.Join(projectDir, ".snip", "config.toml")
+	trustStore := make(trust.Store)
+	hash, err := trust.HashFile(projectCfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trustStore[projectCfgPath] = hash
+	if err := trust.SaveTo(trustStore, filepath.Join(home, ".config", "snip", "trusted.json")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -499,6 +525,18 @@ max_output_bytes = 1048576
 		t.Fatal(err)
 	}
 
+	// Trust the project config so the trust gate passes
+	projectCfgPath := filepath.Join(projectDir, ".snip", "config.toml")
+	trustStore := make(trust.Store)
+	hash, err := trust.HashFile(projectCfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trustStore[projectCfgPath] = hash
+	if err := trust.SaveTo(trustStore, filepath.Join(home, ".config", "snip", "trusted.json")); err != nil {
+		t.Fatal(err)
+	}
+
 	t.Setenv("HOME", home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
@@ -514,6 +552,60 @@ max_output_bytes = 1048576
 	}
 	if cfg.Filters.Global.MaxOutputBytes != 1048576 {
 		t.Errorf("MaxOutputBytes = %d, want 1048576 (project override)", cfg.Filters.Global.MaxOutputBytes)
+	}
+}
+
+func TestLoadMergedGlobalOverrideGateOutputBytesOnly(t *testing.T) {
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	userContent := `[filters.global]
+max_line_length = 200
+`
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	projectContent := `mode = "project"
+
+[filters.global]
+max_output_bytes = 1048576
+`
+	if err := os.WriteFile(filepath.Join(projectDir, ".snip", "config.toml"), []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectCfgPath := filepath.Join(projectDir, ".snip", "config.toml")
+	trustStore := make(trust.Store)
+	hash, err := trust.HashFile(projectCfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trustStore[projectCfgPath] = hash
+	if err := trust.SaveTo(trustStore, filepath.Join(home, ".config", "snip", "trusted.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	cfg, err := LoadMerged()
+	if err != nil {
+		t.Fatalf("LoadMerged: %v", err)
+	}
+	if cfg.Filters.Global.MaxOutputBytes != 1048576 {
+		t.Errorf("MaxOutputBytes = %d, want 1048576", cfg.Filters.Global.MaxOutputBytes)
 	}
 }
 
@@ -541,6 +633,18 @@ commands = ["curl", "wget"]
 commands = ["psql", "jq"]
 `
 	if err := os.WriteFile(filepath.Join(projectDir, ".snip", "config.toml"), []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Trust the project config so the trust gate passes
+	projectCfgPath := filepath.Join(projectDir, ".snip", "config.toml")
+	trustStore := make(trust.Store)
+	hash, err := trust.HashFile(projectCfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trustStore[projectCfgPath] = hash
+	if err := trust.SaveTo(trustStore, filepath.Join(home, ".config", "snip", "trusted.json")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -605,6 +709,18 @@ head = 200
 		t.Fatal(err)
 	}
 
+	// Trust the project config so the trust gate passes
+	projectCfgPath := filepath.Join(projectDir, ".snip", "config.toml")
+	trustStore := make(trust.Store)
+	hash, err := trust.HashFile(projectCfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trustStore[projectCfgPath] = hash
+	if err := trust.SaveTo(trustStore, filepath.Join(home, ".config", "snip", "trusted.json")); err != nil {
+		t.Fatal(err)
+	}
+
 	t.Setenv("HOME", home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
@@ -623,5 +739,232 @@ head = 200
 	}
 	if cfg.Filters.Override["pytest"].Head != 200 {
 		t.Errorf("pytest head = %d, want 200", cfg.Filters.Override["pytest"].Head)
+	}
+}
+
+func TestLoadMergedUntrustedProjectConfigIgnored(t *testing.T) {
+	baseDir := t.TempDir()
+	home := filepath.Join(baseDir, "home")
+	projectDir := filepath.Join(baseDir, "project")
+
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	userContent := "[filters.enable]\ngit-diff = true\n"
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectContent := "mode = \"project\"\n\n[filters.enable]\ngit-diff = false\n"
+	projectPath := filepath.Join(projectDir, ".snip", "config.toml")
+	if err := os.WriteFile(projectPath, []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	cfg, err := LoadMerged()
+	if err != nil {
+		t.Fatalf("LoadMerged: %v", err)
+	}
+	if cfg.Filters.Enable["git-diff"] != true {
+		t.Error("untrusted project config should be ignored, git-diff should be true from user")
+	}
+}
+
+func TestLoadMergedTrustedProjectConfigApplied(t *testing.T) {
+	baseDir := t.TempDir()
+	home := filepath.Join(baseDir, "home")
+	projectDir := filepath.Join(baseDir, "project")
+
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	userContent := "[filters.enable]\ngit-log = true\n"
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectContent := "mode = \"project\"\n\n[filters.enable]\ngit-log = false\n"
+	projectPath := filepath.Join(projectDir, ".snip", "config.toml")
+	if err := os.WriteFile(projectPath, []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	store := make(trust.Store)
+	hash, err := trust.HashFile(projectPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	abs, _ := filepath.Abs(projectPath)
+	store[abs] = hash
+	trustedPath := filepath.Join(home, ".config", "snip", "trusted.json")
+	if err := trust.SaveTo(store, trustedPath); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	cfg, err := LoadMerged()
+	if err != nil {
+		t.Fatalf("LoadMerged: %v", err)
+	}
+	if cfg.Filters.Enable["git-log"] != false {
+		t.Error("trusted project config should override user, git-log should be false")
+	}
+}
+
+func TestLoadMergedMissingTrustStoreReturnsUserOnly(t *testing.T) {
+	baseDir := t.TempDir()
+	home := filepath.Join(baseDir, "home")
+	projectDir := filepath.Join(baseDir, "project")
+
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	userContent := "[filters.enable]\ngit-diff = true\n"
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectContent := "mode = \"project\"\n\n[filters.enable]\ngit-diff = false\n"
+	projectPath := filepath.Join(projectDir, ".snip", "config.toml")
+	if err := os.WriteFile(projectPath, []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	trustedPath := filepath.Join(home, ".config", "snip", "trusted.json")
+	_ = os.Remove(trustedPath)
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	cfg, err := LoadMerged()
+	if err != nil {
+		t.Fatalf("LoadMerged: %v", err)
+	}
+	if cfg.Filters.Enable["git-diff"] != true {
+		t.Error("missing trust store should fall back to user config only")
+	}
+}
+
+func TestLoadMergedMalformedTrustedConfigReturnsError(t *testing.T) {
+	baseDir := t.TempDir()
+	home := filepath.Join(baseDir, "home")
+	projectDir := filepath.Join(baseDir, "project")
+
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	userContent := "[display]\nquiet_no_filter = true\n"
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectContent := "mode = \"project\"\nmissing_bracket = true\n\n[filters.enable\ngit-diff = false\n"
+	projectPath := filepath.Join(projectDir, ".snip", "config.toml")
+	if err := os.WriteFile(projectPath, []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	store := make(trust.Store)
+	hash, err := trust.HashFile(projectPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	abs, _ := filepath.Abs(projectPath)
+	store[abs] = hash
+	trustedPath := filepath.Join(home, ".config", "snip", "trusted.json")
+	if err := trust.SaveTo(store, trustedPath); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	cfg, err := LoadMerged()
+	if err == nil {
+		t.Fatal("expected error for malformed trusted project config")
+	}
+	if cfg != nil {
+		t.Error("expected nil config on malformed project config")
+	}
+}
+
+func TestLoadMergedTrustStoreLoadErrorReturnsUserOnly(t *testing.T) {
+	baseDir := t.TempDir()
+	home := filepath.Join(baseDir, "home")
+	projectDir := filepath.Join(baseDir, "project")
+
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	userContent := "[filters.enable]\ngit-diff = true\n"
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectContent := "mode = \"project\"\n\n[filters.enable]\ngit-diff = false\n"
+	projectPath := filepath.Join(projectDir, ".snip", "config.toml")
+	if err := os.WriteFile(projectPath, []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	trustedPath := filepath.Join(home, ".config", "snip", "trusted.json")
+	if err := os.WriteFile(trustedPath, []byte("not valid json{{{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	cfg, err := LoadMerged()
+	if err != nil {
+		t.Fatalf("LoadMerged: %v", err)
+	}
+	if cfg.Filters.Enable["git-diff"] != true {
+		t.Error("corrupt trust store should fall back to user config only")
 	}
 }

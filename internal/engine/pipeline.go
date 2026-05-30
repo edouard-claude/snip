@@ -211,35 +211,72 @@ func ApplyPipeline(f *filter.Filter, input string) (string, error) {
 // applyOverride modifies a filter's pipeline actions based on project config
 // overrides. When StreamMode is "full", the entire pipeline is cleared (full
 // passthrough). Otherwise, matching pipeline actions are updated with the
-// override values for head, truncate_lines, keep_lines, and remove_lines.
+// override values. Override targets not found in the existing pipeline are
+// appended as new actions (consistent with applyGlobalLimit's behavior).
 func applyOverride(f *filter.Filter, o *config.FilterOverride) {
 	if o.StreamMode == "full" {
 		f.Pipeline = nil
 		return
 	}
+	applied := map[string]bool{}
 	for i, action := range f.Pipeline {
 		switch action.ActionName {
 		case "head":
 			if o.Head > 0 {
 				f.Pipeline[i].Params["n"] = o.Head
+				applied["head"] = true
 			}
 		case "tail":
 			if o.Tail > 0 {
 				f.Pipeline[i].Params["n"] = o.Tail
+				applied["tail"] = true
 			}
 		case "truncate_lines":
 			if o.TruncateLines > 0 {
 				f.Pipeline[i].Params["max"] = o.TruncateLines
+				applied["truncate_lines"] = true
 			}
 		case "keep_lines":
 			if o.KeepLines != "" {
 				f.Pipeline[i].Params["pattern"] = o.KeepLines
+				applied["keep_lines"] = true
 			}
 		case "remove_lines":
 			if o.RemoveLines != "" {
 				f.Pipeline[i].Params["pattern"] = o.RemoveLines
+				applied["remove_lines"] = true
 			}
 		}
+	}
+	if o.Head > 0 && !applied["head"] {
+		f.Pipeline = append(f.Pipeline, filter.Action{
+			ActionName: "head",
+			Params:     map[string]any{"n": o.Head},
+		})
+	}
+	if o.Tail > 0 && !applied["tail"] {
+		f.Pipeline = append(f.Pipeline, filter.Action{
+			ActionName: "tail",
+			Params:     map[string]any{"n": o.Tail},
+		})
+	}
+	if o.TruncateLines > 0 && !applied["truncate_lines"] {
+		f.Pipeline = append(f.Pipeline, filter.Action{
+			ActionName: "truncate_lines",
+			Params:     map[string]any{"max": o.TruncateLines},
+		})
+	}
+	if o.KeepLines != "" && !applied["keep_lines"] {
+		f.Pipeline = append(f.Pipeline, filter.Action{
+			ActionName: "keep_lines",
+			Params:     map[string]any{"pattern": o.KeepLines},
+		})
+	}
+	if o.RemoveLines != "" && !applied["remove_lines"] {
+		f.Pipeline = append(f.Pipeline, filter.Action{
+			ActionName: "remove_lines",
+			Params:     map[string]any{"pattern": o.RemoveLines},
+		})
 	}
 }
 
