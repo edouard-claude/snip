@@ -220,6 +220,9 @@ func applyOverride(f *filter.Filter, o *config.FilterOverride) {
 	}
 	applied := map[string]bool{}
 	for i, action := range f.Pipeline {
+		if action.Params == nil {
+			f.Pipeline[i].Params = make(map[string]any)
+		}
 		switch action.ActionName {
 		case "head":
 			if o.Head > 0 {

@@ -968,3 +968,133 @@ func TestLoadMergedTrustStoreLoadErrorReturnsUserOnly(t *testing.T) {
 		t.Error("corrupt trust store should fall back to user config only")
 	}
 }
+
+func TestLoadMergedTrustRevokedAfterFileModified(t *testing.T) {
+	// After snip trust, if the project config is modified (hash changes),
+	// LoadMerged must fall back to user config only — the trust is revoked.
+	baseDir := t.TempDir()
+	home := filepath.Join(baseDir, "home")
+	projectDir := filepath.Join(baseDir, "project")
+
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	userContent := "[filters.enable]\ngit-diff = true\n"
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectContent := "mode = \"project\"\n\n[filters.enable]\ngit-diff = false\n"
+	projectPath := filepath.Join(projectDir, ".snip", "config.toml")
+	if err := os.WriteFile(projectPath, []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Trust the original content
+	store := make(trust.Store)
+	hash, err := trust.HashFile(projectPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	abs, _ := filepath.Abs(projectPath)
+	store[abs] = hash
+	trustedPath := filepath.Join(home, ".config", "snip", "trusted.json")
+	if err := trust.SaveTo(store, trustedPath); err != nil {
+		t.Fatal(err)
+	}
+
+	// Modify the file — hash no longer matches
+	modifiedContent := "mode = \"project\"\n\n[filters.enable]\ngit-diff = true\n"
+	if err := os.WriteFile(projectPath, []byte(modifiedContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	cfg, err := LoadMerged()
+	if err != nil {
+		t.Fatalf("LoadMerged: %v", err)
+	}
+	// Hash mismatch — project config should be rejected, user config wins
+	if cfg.Filters.Enable["git-diff"] != true {
+		t.Error("modified config should fail trust check, git-diff should stay true (user)")
+	}
+}
+
+func TestLoadMergedSymlinkedProjectConfig(t *testing.T) {
+	// A symlinked .snip/config.toml should still work with the trust
+	// gate — trust.IsTrusted resolves paths via filepath.Abs.
+	baseDir := t.TempDir()
+	home := filepath.Join(baseDir, "home")
+	realProjectDir := filepath.Join(baseDir, "real-project")
+	symProjectDir := filepath.Join(baseDir, "sym-project")
+
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(realProjectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	userContent := "[filters.enable]\ngit-log = true\n"
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectContent := "mode = \"project\"\n\n[filters.enable]\ngit-log = false\n"
+	projectPath := filepath.Join(realProjectDir, ".snip", "config.toml")
+	if err := os.WriteFile(projectPath, []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Symlink the project dir
+	if err := os.MkdirAll(symProjectDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	symSnipDir := filepath.Join(symProjectDir, ".snip")
+	if err := os.Symlink(filepath.Join(realProjectDir, ".snip"), symSnipDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Trust the symlinked path (what projectConfigPath returns after Stat
+	// follows the symlink to the real file).
+	symProjectPath := filepath.Join(symProjectDir, ".snip", "config.toml")
+	abs, _ := filepath.Abs(symProjectPath)
+	store := make(trust.Store)
+	hash, err := trust.HashFile(symProjectPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store[abs] = hash
+	if err := trust.SaveTo(store, filepath.Join(home, ".config", "snip", "trusted.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+	oldWd, _ := os.Getwd()
+	// CWD is the symlinked dir — projectConfigPath walks up from here
+	_ = os.Chdir(symProjectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	cfg, err := LoadMerged()
+	if err != nil {
+		t.Fatalf("LoadMerged: %v", err)
+	}
+	if cfg.Filters.Enable == nil {
+		t.Fatal("expected non-nil Filters.Enable")
+	}
+	if cfg.Filters.Enable["git-log"] != false {
+		t.Error("symlinked project config should be trusted, git-log should be false")
+	}
+}

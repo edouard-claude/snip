@@ -546,3 +546,21 @@ func TestApplyOverrideAppendPreservesCloneIsolation(t *testing.T) {
 		t.Errorf("clone pipeline len = %d, want 2", len(clone.Pipeline))
 	}
 }
+
+func TestApplyOverrideNilParamsDoesNotPanic(t *testing.T) {
+	f := &filter.Filter{
+		Pipeline: filter.Pipeline{
+			{ActionName: "head", Params: nil},
+			{ActionName: "keep_lines", Params: nil},
+		},
+	}
+	o := config.FilterOverride{Head: 25, KeepLines: "error|warn"}
+	applyOverride(f, &o)
+
+	if f.Pipeline[0].Params["n"] != 25 {
+		t.Errorf("head n = %v, want 25 (nil Params should be initialized)", f.Pipeline[0].Params["n"])
+	}
+	if f.Pipeline[1].Params["pattern"] != "error|warn" {
+		t.Errorf("keep_lines pattern = %v, want error|warn", f.Pipeline[1].Params["pattern"])
+	}
+}
