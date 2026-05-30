@@ -193,3 +193,32 @@ func TestFilterCloneEmptyPipeline(t *testing.T) {
 		t.Errorf("expected empty pipeline, got %d actions", len(clone.Pipeline))
 	}
 }
+
+func TestFilterClonePreservesNilParams(t *testing.T) {
+	f := Filter{
+		Name: "test-nil-params",
+		Pipeline: Pipeline{
+			{ActionName: "head", Params: nil},
+			{ActionName: "keep_lines", Params: map[string]any{"pattern": `\S`}},
+		},
+	}
+	clone := f.Clone()
+
+	// Nil Params must stay nil on clone (not become empty map)
+	if clone.Pipeline[0].Params != nil {
+		t.Errorf("clone[0].Params = %v, want nil", clone.Pipeline[0].Params)
+	}
+	// Non-nil Params must be deep-copied
+	if clone.Pipeline[1].Params == nil {
+		t.Fatal("clone[1].Params is nil, want non-nil copy")
+	}
+	if clone.Pipeline[1].Params["pattern"] != `\S` {
+		t.Errorf("clone[1].Params[pattern] = %v, want \\S", clone.Pipeline[1].Params["pattern"])
+	}
+	// Clone must not share the params map with original
+	originalParams := f.Pipeline[1].Params
+	clone.Pipeline[1].Params["pattern"] = "modified"
+	if originalParams["pattern"] != `\S` {
+		t.Error("clone mutation leaked into original Params map")
+	}
+}

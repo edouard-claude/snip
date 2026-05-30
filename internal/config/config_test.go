@@ -1098,3 +1098,140 @@ func TestLoadMergedSymlinkedProjectConfig(t *testing.T) {
 		t.Error("symlinked project config should be trusted, git-log should be false")
 	}
 }
+
+func TestLoadMergedCorruptUserConfigReturnsError(t *testing.T) {
+	baseDir := t.TempDir()
+	home := filepath.Join(baseDir, "home")
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	userContent := "this is not valid toml {{{"
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+
+	cfg, err := LoadMerged()
+	if err == nil {
+		t.Fatal("expected error for corrupt user config")
+	}
+	if cfg != nil {
+		t.Error("expected nil config on corrupt user config")
+	}
+}
+
+func TestLoadMergedProjectConfigWithoutProjectMode(t *testing.T) {
+	// Project config with mode="user" (or no mode) should NOT override user
+	// settings. Only the bypass list merges unconditionally.
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	userContent := "[filters.enable]\ngit-diff = true\n[filters.global]\nmax_lines = 100\n"
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// mode is "user" — project should NOT override
+	projectContent := "mode = \"user\"\n\n[filters.enable]\ngit-diff = false\n[filters.global]\nmax_lines = 200\n"
+	projectPath := filepath.Join(projectDir, ".snip", "config.toml")
+	if err := os.WriteFile(projectPath, []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Trust the project config
+	store := make(trust.Store)
+	hash, err := trust.HashFile(projectPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	abs, _ := filepath.Abs(projectPath)
+	store[abs] = hash
+	if err := trust.SaveTo(store, filepath.Join(home, ".config", "snip", "trusted.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	cfg, err := LoadMerged()
+	if err != nil {
+		t.Fatalf("LoadMerged: %v", err)
+	}
+	// User settings should be preserved since mode is not "project"
+	if cfg.Filters.Enable["git-diff"] != true {
+		t.Error("user git-diff should stay true when project mode is user")
+	}
+	if cfg.Filters.Global.MaxLines != 100 {
+		t.Errorf("user max_lines = %d, want 100 (project not overriding)", cfg.Filters.Global.MaxLines)
+	}
+}
+
+func TestLoadMergedMinimalProjectConfig(t *testing.T) {
+	// Project config with mode="project" but NO enable, global, or override
+	// settings. Must not crash or produce unexpected state.
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	userContent := "[filters.enable]\ngit-diff = true\n"
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	projectContent := "mode = \"project\"\n"
+	projectPath := filepath.Join(projectDir, ".snip", "config.toml")
+	if err := os.WriteFile(projectPath, []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	store := make(trust.Store)
+	hash, err := trust.HashFile(projectPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	abs, _ := filepath.Abs(projectPath)
+	store[abs] = hash
+	if err := trust.SaveTo(store, filepath.Join(home, ".config", "snip", "trusted.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	cfg, err := LoadMerged()
+	if err != nil {
+		t.Fatalf("LoadMerged: %v", err)
+	}
+	if cfg.Mode != "project" {
+		t.Errorf("mode = %q, want project", cfg.Mode)
+	}
+	// User settings preserved (project had nothing to override)
+	if cfg.Filters.Enable["git-diff"] != true {
+		t.Error("user git-diff should be preserved with minimal project config")
+	}
+}

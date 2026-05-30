@@ -240,7 +240,13 @@ func projectConfigPath() string {
 func LoadMerged() (*Config, error) {
 	user, err := Load()
 	if err != nil {
-		return DefaultConfig(), nil
+		// If user config file is missing, use defaults (normal for new installs).
+		// Other errors (permission, corrupt TOML) propagate to the caller so the
+		// user knows something is wrong with their config.
+		if os.IsNotExist(err) {
+			return DefaultConfig(), nil
+		}
+		return nil, fmt.Errorf("load user config: %w", err)
 	}
 
 	projectPath := projectConfigPath()
@@ -277,13 +283,6 @@ func LoadMerged() (*Config, error) {
 		// Enable/disable: project keys win for shared names
 		if merged.Filters.Enable == nil {
 			merged.Filters.Enable = make(map[string]bool)
-		}
-		for k, v := range project.Filters.Enable {
-			merged.Filters.Enable[k] = v
-		}
-		// Global limits: project wins entirely
-		if project.Filters.Global.MaxLines > 0 || project.Filters.Global.MaxLineLength > 0 || project.Filters.Global.MaxOutputBytes > 0 || project.Filters.Global.StreamMode != "" {
-			merged.Filters.Global = project.Filters.Global
 		}
 		for k, v := range project.Filters.Enable {
 			merged.Filters.Enable[k] = v
