@@ -25,7 +25,6 @@ pipeline:
     pattern: "\\S"
   - action: "head"
     n: 5
-on_error: "passthrough"
 `
 	var f Filter
 	if err := yaml.Unmarshal([]byte(input), &f); err != nil {
@@ -61,9 +60,6 @@ on_error: "passthrough"
 	}
 	if f.Pipeline[1].ActionName != "head" {
 		t.Errorf("pipeline[1].action = %q", f.Pipeline[1].ActionName)
-	}
-	if f.OnError != "passthrough" {
-		t.Errorf("on_error = %q", f.OnError)
 	}
 }
 
@@ -220,5 +216,29 @@ func TestFilterClonePreservesNilParams(t *testing.T) {
 	clone.Pipeline[1].Params["pattern"] = "modified"
 	if originalParams["pattern"] != `\S` {
 		t.Error("clone mutation leaked into original Params map")
+	}
+}
+
+func TestYAMLBackwardCompatUntaggedFields(t *testing.T) {
+	// Verify that removing yaml:"description" and yaml:"on_error" tags
+	// does not break YAML parsing — yaml.v3 silently ignores unknown keys.
+	input := `
+name: "backward-compat"
+version: 1
+description: "This field has no yaml tag anymore"
+match:
+  command: "echo"
+pipeline: []
+on_error: "passthrough"
+`
+	var f Filter
+	if err := yaml.Unmarshal([]byte(input), &f); err != nil {
+		t.Fatalf("yaml.Unmarshal should succeed even with untagged fields: %v", err)
+	}
+	if f.Name != "backward-compat" {
+		t.Errorf("Name = %q, want backward-compat", f.Name)
+	}
+	if f.Match.Command != "echo" {
+		t.Errorf("Match.Command = %q, want echo", f.Match.Command)
 	}
 }

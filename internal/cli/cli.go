@@ -17,6 +17,7 @@ import (
 	"github.com/edouard-claude/snip/internal/hook"
 	"github.com/edouard-claude/snip/internal/hookaudit"
 	"github.com/edouard-claude/snip/internal/initcmd"
+	"github.com/edouard-claude/snip/internal/inspect"
 	"github.com/edouard-claude/snip/internal/learn"
 	"github.com/edouard-claude/snip/internal/tee"
 	"github.com/edouard-claude/snip/internal/tracking"
@@ -167,6 +168,9 @@ func Run(args []string) int {
 
 	case "verify":
 		return verify.Run(cmdArgs)
+
+	case "inspect":
+		return inspect.Run(cmdArgs)
 
 	case "trust":
 		return runTrust(cmdArgs)
@@ -431,6 +435,11 @@ Commands:
   trust           Trust project-local filter file(s) by SHA-256 hash
   untrust         Remove filter file(s) from the trust store
   proxy           Passthrough without filtering
+  inspect         Code quality checks for snip's own source
+                  --dead-fields   find tagged struct fields never read
+                  --append-safety find shared-state append() calls
+                  --all           run both checks
+                  --json          output as JSON (for CI)
 
 Init flags:
   --agent <name>  Agent to configure:

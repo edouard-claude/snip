@@ -249,7 +249,8 @@ func groupBy(input ActionResult, params map[string]any) (ActionResult, error) {
 
 	// append mode: keep original lines and add group summary at the end
 	if getBool(params, "append") {
-		out = append(input.Lines, out...)
+		// safe because: fresh slice via append([]string{}, ...)
+		out = append(append([]string{}, input.Lines...), out...)
 	}
 
 	return ActionResult{Lines: out, Metadata: meta}, nil
@@ -637,7 +638,8 @@ func aggregate(input ActionResult, params map[string]any) (ActionResult, error) 
 
 	// append mode: keep original lines and add aggregate summary at the end
 	if getBool(params, "append") {
-		out = append(input.Lines, out...)
+		// safe because: fresh slice via append([]string{}, ...)
+		out = append(append([]string{}, input.Lines...), out...)
 	}
 
 	return ActionResult{Lines: out, Metadata: meta}, nil
