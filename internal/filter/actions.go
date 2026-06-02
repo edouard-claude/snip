@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+	"unicode/utf8"
 
 	"github.com/edouard-claude/snip/internal/utils"
 )
@@ -151,7 +152,12 @@ func truncateBytes(input ActionResult, params map[string]any) (ActionResult, err
 	if len(joined) <= max {
 		return input, nil
 	}
-	input.Lines = strings.Split(joined[:max], "\n")
+	// Back off to a UTF-8 rune boundary so we never emit a partial rune.
+	cut := max
+	for cut > 0 && !utf8.RuneStart(joined[cut]) {
+		cut--
+	}
+	input.Lines = strings.Split(joined[:cut], "\n")
 	return input, nil
 }
 
