@@ -30,7 +30,7 @@ func NewRegistry(filters []Filter) *Registry {
 
 // Match finds the first filter matching the given command, subcommand, and args.
 func (r *Registry) Match(command, subcommand string, args []string) *Filter {
-	// Normalize path-prefixed commands (./gradlew, .\gradlew.bat, /usr/bin/git)
+	// Normalize path-prefixed commands (./gradlew, /usr/bin/git, .\gradlew.bat on Windows)
 	// to bare command names so they match filters keyed on the base name.
 	// Guard empty and root paths: filepath.Base("") returns ".", filepath.Base("/") returns "/".
 	if command != "" && command != "/" && command != "\\" {
@@ -150,7 +150,9 @@ func (r *Registry) ShouldInject(f *Filter, args []string) ([]string, bool) {
 // and subcommand, regardless of flag constraints. Use this to distinguish
 // "no filter at all" from "filter exists but was excluded by flags".
 func (r *Registry) HasAnyFilter(command, subcommand string) bool {
-	command = filepath.Base(command)
+	if command != "" && command != "/" && command != "\\" {
+		command = filepath.Base(command)
+	}
 	if subcommand != "" {
 		if _, ok := r.byKey[command+":"+subcommand]; ok {
 			return true
@@ -165,7 +167,9 @@ func (r *Registry) HasAnyFilter(command, subcommand string) bool {
 // avoid the misleading "no filter for git" hint when "git" has filters for
 // other subcommands (e.g. git-commit) but not for the one being run.
 func (r *Registry) HasAnyFilterForCommand(command string) bool {
-	command = filepath.Base(command)
+	if command != "" && command != "/" && command != "\\" {
+		command = filepath.Base(command)
+	}
 	if _, ok := r.byKey[command]; ok {
 		return true
 	}
