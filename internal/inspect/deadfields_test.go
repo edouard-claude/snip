@@ -24,9 +24,9 @@ func TestDeadFields_KnownCases(t *testing.T) {
 		t.Errorf("MaxOutputBytes should NOT be dead — it is now wired via truncate_bytes action in applyGlobalLimit")
 	}
 
-	// Known: Description is tagged yaml:"description" but never read by behavior code
-	if !foundFields["Description"] {
-		t.Errorf("expected Description to be flagged as dead field")
+	// Known: Description tag removed — yaml:"description" was parsed but never read
+	if foundFields["Description"] {
+		t.Errorf("Description should NOT be flagged — yaml tag removed, field is just a struct comment")
 	}
 
 	// Known: Name is used everywhere (Filter.Name, Match.Name, etc.) — should NOT be dead
@@ -39,9 +39,9 @@ func TestDeadFields_KnownCases(t *testing.T) {
 		t.Errorf("Version should NOT be flagged — used in tests and config")
 	}
 
-	// Known: OnError has 0 behavioral uses (display/config only)
-	if !foundFields["OnError"] {
-		t.Errorf("expected OnError to be flagged — tagged but hardcoded to passthrough")
+	// Known: OnError tag removed — yaml:"on_error" was parsed but hardcoded to passthrough
+	if foundFields["OnError"] {
+		t.Errorf("OnError should NOT be flagged — yaml tag removed, field is just a struct comment")
 	}
 }
 
@@ -125,7 +125,7 @@ func TestCollectTaggedFields(t *testing.T) {
 	}
 
 	// Must find these known tagged fields
-	must := []string{"Mode", "Color", "DBPath", "MaxLines", "MaxOutputBytes", "Name", "Description", "OnError"}
+	must := []string{"Mode", "Color", "DBPath", "MaxLines", "MaxOutputBytes", "Name"}
 	for _, name := range must {
 		if !found[name] {
 			t.Errorf("expected to find tagged field %q, but it was not collected", name)

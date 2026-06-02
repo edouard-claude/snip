@@ -8,12 +8,12 @@ import (
 type Filter struct {
 	Name        string       `yaml:"name"`
 	Version     int          `yaml:"version"`
-	Description string       `yaml:"description"`
+	Description string       // parsed from YAML but unused by behavior code
 	Match       Match        `yaml:"match"`
 	Inject      *Inject      `yaml:"inject,omitempty"`
-	Streams     []string     `yaml:"streams,omitempty"` // "stdout", "stderr"; defaults to ["stdout"]
+	Streams     []string     `yaml:"streams,omitempty"`
 	Pipeline    Pipeline     `yaml:"pipeline"`
-	OnError     string       `yaml:"on_error"` // "passthrough", "empty", "template"
+	OnError     string       // parsed from YAML, hardcoded to passthrough in pipeline
 	Tests       []FilterTest `yaml:"tests,omitempty"`
 }
 

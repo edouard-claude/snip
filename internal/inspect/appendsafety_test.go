@@ -41,28 +41,30 @@ func TestAppendSafety_KnownCases(t *testing.T) {
 		t.Errorf("config.go should be SAFE — fresh-slice guard added to bypass merge")
 	}
 
-	// Known: actions.go:246 — append(input.Lines, ...) shares caller's backing array
-	actions246Risky := false
+	// Known: actions.go:252 — was RISKY, now fixed: append(append([]string{}, input.Lines...), ...)
+	// The inner append creates a fresh copy so the outer call is no longer shared-state.
+	// The checker no longer reports this line at all (neither risky nor safe).
+	actions252Gone := true
 	for _, f := range findings {
-		if contains(f.File, "actions.go") && f.Line == 246 && f.Level == "risky" {
-			actions246Risky = true
+		if contains(f.File, "actions.go") && f.Line == 252 {
+			actions252Gone = false
 			break
 		}
 	}
-	if !actions246Risky {
-		t.Errorf("actions.go:246 should be RISKY — append(input.Lines, ...) shares backing array")
+	if !actions252Gone {
+		t.Errorf("actions.go:252 should no longer appear in findings — backing array aliasing fixed")
 	}
 
-	// Known: actions.go:634 — same pattern
-	actions634Risky := false
+	// Known: actions.go:640 — was RISKY, same fix applied → no longer detected
+	actions640Gone := true
 	for _, f := range findings {
-		if contains(f.File, "actions.go") && f.Line == 634 && f.Level == "risky" {
-			actions634Risky = true
+		if contains(f.File, "actions.go") && f.Line == 640 {
+			actions640Gone = false
 			break
 		}
 	}
-	if !actions634Risky {
-		t.Errorf("actions.go:634 should be RISKY — append(input.Lines, ...) shares backing array")
+	if !actions640Gone {
+		t.Errorf("actions.go:640 should no longer appear in findings — backing array aliasing fixed")
 	}
 
 	t.Logf("Found %d append safety issues (%d risky)", len(findings), len(risky))

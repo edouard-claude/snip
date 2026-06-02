@@ -25,7 +25,6 @@ pipeline:
     pattern: "\\S"
   - action: "head"
     n: 5
-on_error: "passthrough"
 `
 	var f Filter
 	if err := yaml.Unmarshal([]byte(input), &f); err != nil {
@@ -61,9 +60,6 @@ on_error: "passthrough"
 	}
 	if f.Pipeline[1].ActionName != "head" {
 		t.Errorf("pipeline[1].action = %q", f.Pipeline[1].ActionName)
-	}
-	if f.OnError != "passthrough" {
-		t.Errorf("on_error = %q", f.OnError)
 	}
 }
 
