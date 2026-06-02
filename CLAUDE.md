@@ -76,6 +76,7 @@ goreleaser release --snapshot --clean          # Test release build locally
 ## Build Variants
 
 Two build modes via Go build tags:
+
 - **Full** (default): includes `modernc.org/sqlite` for token tracking via `internal/tracking/driver.go`
 - **Lite** (`-tags lite`): excludes SQLite, uses `driver_lite.go` stub — startup ~3ms faster
 
@@ -83,8 +84,8 @@ Tests requiring SQLite must have `//go:build !lite` tag. Check `tracking.DriverA
 
 ## Filter DSL
 
-Filters are declarative YAML files with 19 built-in actions:
-`keep_lines`, `remove_lines`, `truncate_lines`, `strip_ansi`, `head`, `tail`,
+Filters are declarative YAML files with 20 built-in actions:
+`keep_lines`, `remove_lines`, `truncate_lines`, `truncate_bytes`, `strip_ansi`, `head`, `tail`,
 `group_by`, `dedup`, `json_extract`, `json_schema`, `ndjson_stream`,
 `regex_extract`, `state_machine`, `aggregate`, `format_template`, `compact_path`,
 `replace`, `match_output`, `on_empty`
@@ -97,6 +98,7 @@ A push of any `v*` tag triggers CI to build cross-platform binaries and create a
 ### Semver Tagging
 
 Every push that changes behavior **must** include a version tag:
+
 - **Patch** (`v0.1.1`): bug fixes, no API change
 - **Minor** (`v0.2.0`): new features, backward-compatible
 - **Major** (`v1.0.0`): breaking changes

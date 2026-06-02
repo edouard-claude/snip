@@ -1,6 +1,8 @@
 package filter
 
-import "slices"
+import (
+	"slices"
+)
 
 // Filter represents a declarative YAML filter for a command.
 type Filter struct {
@@ -29,6 +31,36 @@ func (f *Filter) HasStream(name string) bool {
 		return name == "stdout"
 	}
 	return slices.Contains(f.Streams, name)
+}
+
+// Clone returns a deep copy of the filter. The Pipeline and its Params
+// maps are independently allocated so mutations to the clone do not
+// affect the original.
+func (f *Filter) Clone() *Filter {
+	if f == nil {
+		return nil
+	}
+	clone := *f
+	clone.Pipeline = make(Pipeline, len(f.Pipeline))
+	for i, a := range f.Pipeline {
+		clone.Pipeline[i] = Action{
+			ActionName: a.ActionName,
+			Params:     cloneParams(a.Params),
+		}
+	}
+	return &clone
+}
+
+// cloneParams returns a deep copy of the params map, preserving nil.
+func cloneParams(src map[string]any) map[string]any {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string]any, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
 }
 
 // Match defines which command a filter applies to.

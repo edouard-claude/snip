@@ -3,6 +3,7 @@ package filter
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func lines(s ...string) ActionResult {
@@ -58,6 +59,51 @@ func TestTruncateLines(t *testing.T) {
 	}
 	if res.Lines[0] != "short" {
 		t.Errorf("short line modified: %q", res.Lines[0])
+	}
+}
+
+func TestTruncateBytesUTF8Boundary(t *testing.T) {
+	// "héllo" is h(1) é(2) l(1) l(1) o(1) = 6 bytes.
+	// Cutting at max=2 would land mid-rune through é (bytes 1-2).
+	// We must back off to byte 1 so we never emit invalid UTF-8.
+	input := lines("héllo")
+	res, err := truncateBytes(input, map[string]any{"max": 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := strings.Join(res.Lines, "\n")
+	if !utf8.ValidString(out) {
+		t.Errorf("truncated output is not valid UTF-8: %q (% x)", out, out)
+	}
+	if out != "h" {
+		t.Errorf("got %q, want %q", out, "h")
+	}
+}
+
+func TestTruncateBytesNoCut(t *testing.T) {
+	input := lines("short")
+	res, err := truncateBytes(input, map[string]any{"max": 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(res.Lines, "\n") != "short" {
+		t.Errorf("input mutated: %v", res.Lines)
+	}
+}
+
+func TestTruncateBytesEmoji(t *testing.T) {
+	// Emoji "🎉" is 4 bytes (F0 9F 8E 89). max=3 lands mid-emoji.
+	input := lines("ab🎉cd")
+	res, err := truncateBytes(input, map[string]any{"max": 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := strings.Join(res.Lines, "\n")
+	if !utf8.ValidString(out) {
+		t.Errorf("truncated output is not valid UTF-8: %q (% x)", out, out)
+	}
+	if out != "ab" {
+		t.Errorf("got %q, want %q", out, "ab")
 	}
 }
 
