@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -29,9 +30,12 @@ func NewRegistry(filters []Filter) *Registry {
 
 // Match finds the first filter matching the given command, subcommand, and args.
 func (r *Registry) Match(command, subcommand string, args []string) *Filter {
-	// Strip a leading "./" so wrapper invocations (e.g. ./gradlew) match
-	// filters keyed on the bare name.
-	command = strings.TrimPrefix(command, "./")
+	// Normalize path-prefixed commands (./gradlew, /usr/bin/git, .\gradlew.bat on Windows)
+	// to bare command names so they match filters keyed on the base name.
+	// Guard empty and root paths: filepath.Base("") returns ".", filepath.Base("/") returns "/".
+	if command != "" && command != "/" && command != "\\" {
+		command = filepath.Base(command)
+	}
 
 	// Include subcommand in flag matching so that exclude_flags like
 	// "--version" are detected even when they appear as the first arg
@@ -83,7 +87,7 @@ func (r *Registry) ShouldInject(f *Filter, args []string) ([]string, bool) {
 	}
 
 	// Apply injected args — insert before "--" separator if present
-	result := make([]string, 0, len(args)+len(f.Inject.Args))
+	result := make([]string, 0, len(args)+len(f.Inject.Args)+len(f.Inject.Defaults)*2)
 	dashDashIdx := -1
 	for i, a := range args {
 		if a == "--" {
@@ -94,25 +98,49 @@ func (r *Registry) ShouldInject(f *Filter, args []string) ([]string, bool) {
 	if dashDashIdx >= 0 {
 		result = append(result, args[:dashDashIdx]...)
 		result = append(result, f.Inject.Args...)
+		// Inject defaults before user args so user flags win (last-flag-wins semantics)
+		for flag, val := range f.Inject.Defaults {
+			found := false
+			for _, arg := range result {
+				if strings.HasPrefix(arg, flag) {
+					found = true
+					break
+				}
+			}
+			for _, arg := range args[:dashDashIdx] {
+				if strings.HasPrefix(arg, flag) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				result = append(result, flag, val)
+			}
+		}
 		result = append(result, args[dashDashIdx:]...)
 	} else {
 		result = append(result, args[0])
 		result = append(result, f.Inject.Args...)
-		result = append(result, args[1:]...)
-	}
-
-	// Apply defaults (only if flag not already present)
-	for flag, val := range f.Inject.Defaults {
-		found := false
-		for _, arg := range result {
-			if strings.HasPrefix(arg, flag) {
-				found = true
-				break
+		// Inject defaults before user args so user flags win (last-flag-wins semantics)
+		for flag, val := range f.Inject.Defaults {
+			found := false
+			for _, arg := range result {
+				if strings.HasPrefix(arg, flag) {
+					found = true
+					break
+				}
+			}
+			for _, arg := range args[1:] {
+				if strings.HasPrefix(arg, flag) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				result = append(result, flag, val)
 			}
 		}
-		if !found {
-			result = append(result, flag, val)
-		}
+		result = append(result, args[1:]...)
 	}
 
 	return result, true
@@ -122,7 +150,9 @@ func (r *Registry) ShouldInject(f *Filter, args []string) ([]string, bool) {
 // and subcommand, regardless of flag constraints. Use this to distinguish
 // "no filter at all" from "filter exists but was excluded by flags".
 func (r *Registry) HasAnyFilter(command, subcommand string) bool {
-	command = strings.TrimPrefix(command, "./")
+	if command != "" && command != "/" && command != "\\" {
+		command = filepath.Base(command)
+	}
 	if subcommand != "" {
 		if _, ok := r.byKey[command+":"+subcommand]; ok {
 			return true
@@ -137,7 +167,9 @@ func (r *Registry) HasAnyFilter(command, subcommand string) bool {
 // avoid the misleading "no filter for git" hint when "git" has filters for
 // other subcommands (e.g. git-commit) but not for the one being run.
 func (r *Registry) HasAnyFilterForCommand(command string) bool {
-	command = strings.TrimPrefix(command, "./")
+	if command != "" && command != "/" && command != "\\" {
+		command = filepath.Base(command)
+	}
 	if _, ok := r.byKey[command]; ok {
 		return true
 	}

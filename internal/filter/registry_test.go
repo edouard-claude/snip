@@ -278,3 +278,127 @@ func TestShouldInjectNoInject(t *testing.T) {
 		t.Errorf("args modified: %v", args)
 	}
 }
+
+// TestShouldInjectUserFlagWinsOverDefault is the regression test for #79:
+// when the user already provided a flag that has a default, the default
+// must not be injected (otherwise git's last-flag-wins picks the wrong one).
+func TestShouldInjectUserFlagWinsOverDefault(t *testing.T) {
+	f := Filter{
+		Name: "git-log",
+		Inject: &Inject{
+			Args:     []string{"--no-merges"},
+			Defaults: map[string]string{"-n": "10"},
+		},
+	}
+	reg := NewRegistry(nil)
+
+	args, injected := reg.ShouldInject(&f, []string{"log", "-n", "50"})
+	if !injected {
+		t.Fatal("expected injection")
+	}
+	// Count occurrences of -n. Must be exactly one (the user's).
+	nCount := 0
+	for _, a := range args {
+		if a == "-n" {
+			nCount++
+		}
+	}
+	if nCount != 1 {
+		t.Errorf("-n appears %d times, want 1: %v", nCount, args)
+	}
+	// The user's "50" must survive somewhere after the user's -n.
+	hasFifty := false
+	for _, a := range args {
+		if a == "50" {
+			hasFifty = true
+		}
+	}
+	if !hasFifty {
+		t.Errorf("user value 50 was dropped: %v", args)
+	}
+}
+
+// TestShouldInjectDefaultsPrecedeUserArgs ensures defaults end up between
+// inject.args and user args (not appended at the end), so user flags
+// always have the final word under last-flag-wins.
+func TestShouldInjectDefaultsPrecedeUserArgs(t *testing.T) {
+	f := Filter{
+		Name: "git-log",
+		Inject: &Inject{
+			Args:     []string{"--no-merges"},
+			Defaults: map[string]string{"-n": "10"},
+		},
+	}
+	reg := NewRegistry(nil)
+
+	args, injected := reg.ShouldInject(&f, []string{"log", "HEAD"})
+	if !injected {
+		t.Fatal("expected injection")
+	}
+	// Find positions
+	nIdx, headIdx := -1, -1
+	for i, a := range args {
+		if a == "-n" {
+			nIdx = i
+		}
+		if a == "HEAD" {
+			headIdx = i
+		}
+	}
+	if nIdx < 0 || headIdx < 0 {
+		t.Fatalf("missing tokens in %v", args)
+	}
+	if nIdx > headIdx {
+		t.Errorf("default -n (idx %d) must precede user HEAD (idx %d): %v", nIdx, headIdx, args)
+	}
+}
+
+// TestMatchPathPrefixNormalization covers the filepath.Base normalization
+// for invocation styles like ./gradlew, /usr/bin/git, and bare names.
+func TestMatchPathPrefixNormalization(t *testing.T) {
+	filters := []Filter{
+		makeFilter("git-log", "git", "log"),
+		makeFilter("gradlew", "gradlew", ""),
+	}
+	reg := NewRegistry(filters)
+
+	cases := []struct {
+		name    string
+		cmd     string
+		sub     string
+		args    []string
+		wantHit bool
+	}{
+		{"bare git", "git", "log", []string{"log"}, true},
+		{"relative ./gradlew", "./gradlew", "", []string{}, true},
+		{"absolute /usr/bin/git", "/usr/bin/git", "log", []string{"log"}, true},
+		{"empty command", "", "log", []string{"log"}, false},
+		{"root slash", "/", "log", []string{"log"}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := reg.Match(tc.cmd, tc.sub, tc.args)
+			if tc.wantHit && got == nil {
+				t.Errorf("expected match for %q", tc.cmd)
+			}
+			if !tc.wantHit && got != nil {
+				t.Errorf("unexpected match %q for %q", got.Name, tc.cmd)
+			}
+		})
+	}
+}
+
+func TestHasAnyFilterPathPrefixNormalization(t *testing.T) {
+	filters := []Filter{makeFilter("git-log", "git", "log")}
+	reg := NewRegistry(filters)
+
+	if !reg.HasAnyFilter("/usr/bin/git", "log") {
+		t.Error("HasAnyFilter should normalize absolute path to bare name")
+	}
+	if !reg.HasAnyFilterForCommand("./git") {
+		t.Error("HasAnyFilterForCommand should strip ./ prefix")
+	}
+	if reg.HasAnyFilter("", "log") {
+		t.Error("empty command must not match anything")
+	}
+}
