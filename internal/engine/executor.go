@@ -41,7 +41,7 @@ var shellBuiltins = map[string]bool{
 // in $PATH and would fail with exec.Command directly.
 func makeCommand(command string, args []string) *exec.Cmd {
 	if shellBuiltins[command] {
-		shPath, err := lookPathSafe("sh")
+		shPath, err := lookPath("sh")
 		if err != nil {
 			shPath = "/bin/sh"
 		}
@@ -53,7 +53,7 @@ func makeCommand(command string, args []string) *exec.Cmd {
 			Args: append([]string{"sh"}, shArgs...),
 		}
 	}
-	cmdPath, err := lookPathSafe(command)
+	cmdPath, err := lookPath(command)
 	if err != nil {
 		cmdPath = command
 	}
