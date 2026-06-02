@@ -1,0 +1,67 @@
+name: "gradlew-bat"
+version: 1
+description: "Condensed gradle wrapper output on Windows (.bat): build result and errors"
+
+match:
+  command: "gradlew.bat"
+  exclude_flags: ["--version", "-V"]
+
+streams:
+  - stdout
+  - stderr
+
+pipeline:
+  - action: "strip_ansi"
+  - action: "remove_lines"
+    pattern: "(^> Task |^\\s*$|^Downloading|^\\.\\.\\.|^Starting)"
+  - action: "keep_lines"
+    pattern: "(BUILD|FAILURE|ERROR|error:|warning:|FAILED|UP-TO-DATE|actionable|Test result)"
+  - action: "truncate_lines"
+    max: 120
+  - action: "head"
+    n: 40
+
+on_error: "passthrough"
+
+tests:
+  - name: "build success"
+    input: |
+      > Task :compileJava
+      > Task :processResources
+      > Task :classes
+      > Task :jar
+
+      BUILD SUCCESSFUL in 2s
+      5 actionable tasks: 5 executed
+    expected: |
+      BUILD SUCCESSFUL in 2s
+      5 actionable tasks: 5 executed
+  - name: "build failure with error"
+    input: |
+      > Task :compileJava FAILED
+      > Task :processResources UP-TO-DATE
+
+      FAILURE: Build failed with an exception.
+
+      * What went wrong:
+      Execution failed for task ':compileJava'.
+      > Compilation error: package com.example does not exist
+
+      BUILD FAILED in 1s
+    expected: |
+      FAILURE: Build failed with an exception.
+      > Compilation error: package com.example does not exist
+      BUILD FAILED in 1s
+  - name: "download and start noise removed"
+    input: |
+      Downloading https://services.gradle.org/distributions/gradle-8.5-bin.zip
+      .......................................................
+      Starting a Gradle Daemon (subsequent builds will be faster)
+
+      > Task :test
+      Test result: FAILURE
+
+      BUILD FAILED in 5s
+    expected: |
+      Test result: FAILURE
+      BUILD FAILED in 5s
