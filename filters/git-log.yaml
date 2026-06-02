@@ -11,7 +11,8 @@ inject:
   args: ["--pretty=format:%h %s (%ar) <%an>", "--no-merges"]
   defaults:
     "-n": "10"
-  skip_if_present: ["--merges", "--format", "--pretty", "--oneline"]
+  skip_if_present:
+    ["--merges", "--format", "--pretty", "--oneline", "-n", "--max-count"]
 
 pipeline:
   - action: "keep_lines"
