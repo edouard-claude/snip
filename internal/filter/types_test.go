@@ -218,3 +218,27 @@ func TestFilterClonePreservesNilParams(t *testing.T) {
 		t.Error("clone mutation leaked into original Params map")
 	}
 }
+
+func TestYAMLBackwardCompatUntaggedFields(t *testing.T) {
+	// Verify that removing yaml:"description" and yaml:"on_error" tags
+	// does not break YAML parsing — yaml.v3 silently ignores unknown keys.
+	input := `
+name: "backward-compat"
+version: 1
+description: "This field has no yaml tag anymore"
+match:
+  command: "echo"
+pipeline: []
+on_error: "passthrough"
+`
+	var f Filter
+	if err := yaml.Unmarshal([]byte(input), &f); err != nil {
+		t.Fatalf("yaml.Unmarshal should succeed even with untagged fields: %v", err)
+	}
+	if f.Name != "backward-compat" {
+		t.Errorf("Name = %q, want backward-compat", f.Name)
+	}
+	if f.Match.Command != "echo" {
+		t.Errorf("Match.Command = %q, want echo", f.Match.Command)
+	}
+}

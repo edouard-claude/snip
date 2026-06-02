@@ -200,6 +200,37 @@ func TestGroupByAppend(t *testing.T) {
 	}
 }
 
+func TestGroupByAppendAliasingIsolation(t *testing.T) {
+	// Verify that the backing array fix prevents mutation of the original
+	// input slice from leaking into the groupBy output.
+	original := []string{"a.go", "b.json", "c.go"}
+	copyForInput := make([]string, len(original))
+	copy(copyForInput, original)
+
+	input := ActionResult{Lines: copyForInput, Metadata: nil}
+	res, err := groupBy(input, map[string]any{
+		"pattern": `\.(\w+)$`,
+		"format":  "{{.Key}}: {{.Count}}",
+		"append":  true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Mutate the original backing array — should not affect result
+	copyForInput[0] = "CORRUPTED"
+	copyForInput[1] = "CORRUPTED"
+
+	// Original lines in result must still be intact
+	if res.Lines[0] != "a.go" {
+		t.Errorf("backing array aliasing still present: first line = %q, want a.go", res.Lines[0])
+	}
+	if res.Lines[1] != "b.json" {
+		t.Errorf("backing array aliasing still present: second line = %q, want b.json", res.Lines[1])
+	}
+	_ = original
+}
+
 func TestDedup(t *testing.T) {
 	input := lines("error: foo", "error: foo", "error: foo", "warn: bar", "warn: bar")
 	res, err := dedup(input, map[string]any{})
@@ -267,6 +298,35 @@ func TestAggregateAppend(t *testing.T) {
 	if res.Lines[0] != "PASS foo" {
 		t.Errorf("first line should be original, got %q", res.Lines[0])
 	}
+}
+
+func TestAggregateAppendAliasingIsolation(t *testing.T) {
+	original := []string{"PASS a", "FAIL b", "PASS c"}
+	copyForInput := make([]string, len(original))
+	copy(copyForInput, original)
+
+	input := ActionResult{Lines: copyForInput, Metadata: nil}
+	res, err := aggregate(input, map[string]any{
+		"patterns": map[string]any{
+			"pass": `^PASS`,
+			"fail": `^FAIL`,
+		},
+		"append": true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	copyForInput[0] = "CORRUPTED"
+	copyForInput[1] = "CORRUPTED"
+
+	if res.Lines[0] != "PASS a" {
+		t.Errorf("backing array aliasing still present: first line = %q, want PASS a", res.Lines[0])
+	}
+	if res.Lines[1] != "FAIL b" {
+		t.Errorf("backing array aliasing still present: second line = %q, want FAIL b", res.Lines[1])
+	}
+	_ = original
 }
 
 func TestFormatTemplate(t *testing.T) {
