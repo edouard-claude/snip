@@ -222,13 +222,11 @@ func TestGroupByAppendAliasingIsolation(t *testing.T) {
 	copyForInput[1] = "CORRUPTED"
 
 	// Original lines in result must still be intact
-	if res.Lines[0] != "a.go" {
-		t.Errorf("backing array aliasing still present: first line = %q, want a.go", res.Lines[0])
+	for i, want := range original {
+		if res.Lines[i] != want {
+			t.Errorf("backing array aliasing at line %d: got %q, want %q", i, res.Lines[i], want)
+		}
 	}
-	if res.Lines[1] != "b.json" {
-		t.Errorf("backing array aliasing still present: second line = %q, want b.json", res.Lines[1])
-	}
-	_ = original
 }
 
 func TestDedup(t *testing.T) {
@@ -320,13 +318,11 @@ func TestAggregateAppendAliasingIsolation(t *testing.T) {
 	copyForInput[0] = "CORRUPTED"
 	copyForInput[1] = "CORRUPTED"
 
-	if res.Lines[0] != "PASS a" {
-		t.Errorf("backing array aliasing still present: first line = %q, want PASS a", res.Lines[0])
+	for i, want := range original {
+		if res.Lines[i] != want {
+			t.Errorf("backing array aliasing at line %d: got %q, want %q", i, res.Lines[i], want)
+		}
 	}
-	if res.Lines[1] != "FAIL b" {
-		t.Errorf("backing array aliasing still present: second line = %q, want FAIL b", res.Lines[1])
-	}
-	_ = original
 }
 
 func TestFormatTemplate(t *testing.T) {
