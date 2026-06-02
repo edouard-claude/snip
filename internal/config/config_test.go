@@ -8,6 +8,21 @@ import (
 	"github.com/edouard-claude/snip/internal/trust"
 )
 
+// canonicalTempDir returns t.TempDir() with symlinks resolved. macOS's
+// $TMPDIR (/var/folders/...) is a symlink to /private/var/folders/...,
+// while os.Getwd() in production returns the resolved form. Without this,
+// trust store keys (built from raw TempDir paths via filepath.Abs) would
+// not match what LoadMerged looks up via projectConfigPath after Chdir.
+func canonicalTempDir(t *testing.T) string {
+	t.Helper()
+	d := t.TempDir()
+	resolved, err := filepath.EvalSymlinks(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resolved
+}
+
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
@@ -357,7 +372,7 @@ quiet_no_filter = true
 	}
 
 	// Project config: has [filters.enable] with mode="project"
-	projectDir := t.TempDir()
+	projectDir := canonicalTempDir(t)
 	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -420,7 +435,7 @@ max_lines = 100
 		t.Fatal(err)
 	}
 
-	projectDir := t.TempDir()
+	projectDir := canonicalTempDir(t)
 	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -511,7 +526,7 @@ max_line_length = 200
 		t.Fatal(err)
 	}
 
-	projectDir := t.TempDir()
+	projectDir := canonicalTempDir(t)
 	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -570,7 +585,7 @@ max_line_length = 200
 		t.Fatal(err)
 	}
 
-	projectDir := t.TempDir()
+	projectDir := canonicalTempDir(t)
 	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -625,7 +640,7 @@ commands = ["curl", "wget"]
 		t.Fatal(err)
 	}
 
-	projectDir := t.TempDir()
+	projectDir := canonicalTempDir(t)
 	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -693,7 +708,7 @@ quiet_no_filter = true
 		t.Fatal(err)
 	}
 
-	projectDir := t.TempDir()
+	projectDir := canonicalTempDir(t)
 	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -743,7 +758,7 @@ head = 200
 }
 
 func TestLoadMergedUntrustedProjectConfigIgnored(t *testing.T) {
-	baseDir := t.TempDir()
+	baseDir := canonicalTempDir(t)
 	home := filepath.Join(baseDir, "home")
 	projectDir := filepath.Join(baseDir, "project")
 
@@ -782,7 +797,7 @@ func TestLoadMergedUntrustedProjectConfigIgnored(t *testing.T) {
 }
 
 func TestLoadMergedTrustedProjectConfigApplied(t *testing.T) {
-	baseDir := t.TempDir()
+	baseDir := canonicalTempDir(t)
 	home := filepath.Join(baseDir, "home")
 	projectDir := filepath.Join(baseDir, "project")
 
@@ -833,7 +848,7 @@ func TestLoadMergedTrustedProjectConfigApplied(t *testing.T) {
 }
 
 func TestLoadMergedMissingTrustStoreReturnsUserOnly(t *testing.T) {
-	baseDir := t.TempDir()
+	baseDir := canonicalTempDir(t)
 	home := filepath.Join(baseDir, "home")
 	projectDir := filepath.Join(baseDir, "project")
 
@@ -875,7 +890,7 @@ func TestLoadMergedMissingTrustStoreReturnsUserOnly(t *testing.T) {
 }
 
 func TestLoadMergedMalformedTrustedConfigReturnsError(t *testing.T) {
-	baseDir := t.TempDir()
+	baseDir := canonicalTempDir(t)
 	home := filepath.Join(baseDir, "home")
 	projectDir := filepath.Join(baseDir, "project")
 
@@ -926,7 +941,7 @@ func TestLoadMergedMalformedTrustedConfigReturnsError(t *testing.T) {
 }
 
 func TestLoadMergedTrustStoreLoadErrorReturnsUserOnly(t *testing.T) {
-	baseDir := t.TempDir()
+	baseDir := canonicalTempDir(t)
 	home := filepath.Join(baseDir, "home")
 	projectDir := filepath.Join(baseDir, "project")
 
@@ -972,7 +987,7 @@ func TestLoadMergedTrustStoreLoadErrorReturnsUserOnly(t *testing.T) {
 func TestLoadMergedTrustRevokedAfterFileModified(t *testing.T) {
 	// After snip trust, if the project config is modified (hash changes),
 	// LoadMerged must fall back to user config only — the trust is revoked.
-	baseDir := t.TempDir()
+	baseDir := canonicalTempDir(t)
 	home := filepath.Join(baseDir, "home")
 	projectDir := filepath.Join(baseDir, "project")
 
@@ -1033,7 +1048,7 @@ func TestLoadMergedTrustRevokedAfterFileModified(t *testing.T) {
 func TestLoadMergedSymlinkedProjectConfig(t *testing.T) {
 	// A symlinked .snip/config.toml should still work with the trust
 	// gate — trust.IsTrusted resolves paths via filepath.Abs.
-	baseDir := t.TempDir()
+	baseDir := canonicalTempDir(t)
 	home := filepath.Join(baseDir, "home")
 	realProjectDir := filepath.Join(baseDir, "real-project")
 	symProjectDir := filepath.Join(baseDir, "sym-project")
@@ -1100,7 +1115,7 @@ func TestLoadMergedSymlinkedProjectConfig(t *testing.T) {
 }
 
 func TestLoadMergedCorruptUserConfigReturnsError(t *testing.T) {
-	baseDir := t.TempDir()
+	baseDir := canonicalTempDir(t)
 	home := filepath.Join(baseDir, "home")
 	if err := os.MkdirAll(filepath.Join(home, ".config", "snip", "filters"), 0o755); err != nil {
 		t.Fatal(err)
@@ -1139,7 +1154,7 @@ func TestLoadMergedProjectConfigWithoutProjectMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	projectDir := t.TempDir()
+	projectDir := canonicalTempDir(t)
 	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -1196,7 +1211,7 @@ func TestLoadMergedMinimalProjectConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	projectDir := t.TempDir()
+	projectDir := canonicalTempDir(t)
 	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
 		t.Fatal(err)
 	}
