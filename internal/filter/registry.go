@@ -32,7 +32,10 @@ func NewRegistry(filters []Filter) *Registry {
 func (r *Registry) Match(command, subcommand string, args []string) *Filter {
 	// Normalize path-prefixed commands (./gradlew, .\gradlew.bat, /usr/bin/git)
 	// to bare command names so they match filters keyed on the base name.
-	command = filepath.Base(command)
+	// Guard empty and root paths: filepath.Base("") returns ".", filepath.Base("/") returns "/".
+	if command != "" && command != "/" && command != "\\" {
+		command = filepath.Base(command)
+	}
 
 	// Include subcommand in flag matching so that exclude_flags like
 	// "--version" are detected even when they appear as the first arg
