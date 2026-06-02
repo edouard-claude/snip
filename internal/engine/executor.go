@@ -41,12 +41,26 @@ var shellBuiltins = map[string]bool{
 // in $PATH and would fail with exec.Command directly.
 func makeCommand(command string, args []string) *exec.Cmd {
 	if shellBuiltins[command] {
+		shPath, err := lookPath("sh")
+		if err != nil {
+			shPath = "/bin/sh"
+		}
 		shArgs := make([]string, 0, len(args)+3)
 		shArgs = append(shArgs, "-c", command+` "$@"`, "_")
 		shArgs = append(shArgs, args...)
-		return exec.Command("sh", shArgs...)
+		return &exec.Cmd{
+			Path: shPath,
+			Args: append([]string{"sh"}, shArgs...),
+		}
 	}
-	return exec.Command(command, args...)
+	cmdPath, err := lookPath(command)
+	if err != nil {
+		cmdPath = command
+	}
+	return &exec.Cmd{
+		Path: cmdPath,
+		Args: append([]string{command}, args...),
+	}
 }
 
 // Execute runs a command, capturing stdout and stderr concurrently via goroutines.
