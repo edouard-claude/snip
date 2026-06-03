@@ -93,5 +93,14 @@ type ActionResult struct {
 	Metadata map[string]any
 }
 
+// PipelineActionNames returns the ordered list of action names in the pipeline.
+func (f *Filter) PipelineActionNames() []string {
+	names := make([]string, len(f.Pipeline))
+	for i, a := range f.Pipeline {
+		names[i] = a.ActionName
+	}
+	return names
+}
+
 // ActionFunc is the signature for built-in action implementations.
 type ActionFunc func(input ActionResult, params map[string]any) (ActionResult, error)
