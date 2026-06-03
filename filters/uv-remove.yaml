@@ -1,10 +1,10 @@
-name: "uv-sync"
+name: "uv-remove"
 version: 1
-description: "Condensed uv output: install summary"
+description: "Condensed uv remove output: uninstall summary"
 
 match:
   command: "uv"
-  subcommand: "sync"
+  subcommand: "remove"
   exclude_flags: ["--version", "-V"]
 
 streams:
