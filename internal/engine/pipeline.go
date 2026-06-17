@@ -118,6 +118,18 @@ func (p *Pipeline) Run(command string, args []string) int {
 		filtered = pipelineInput
 	}
 
+	// Safety net: a filter that strips every line would send empty output to
+	// the LLM, which is worse than the raw result and triggers wasteful retry
+	// loops (issue #85). Fall back to raw unless the input was itself empty.
+	// Filters with a legitimately empty result use the on_empty action to emit
+	// a message, so they never reach this state.
+	if shouldRestoreRaw(filtered, pipelineInput) {
+		if p.Verbose > 0 {
+			fmt.Fprintf(os.Stderr, "snip: filter %q produced empty output, using raw\n", f.Name)
+		}
+		filtered = pipelineInput
+	}
+
 	// Tee: save raw output if needed
 	hint := tee.MaybeSave(pipelineInput, result.ExitCode, command, p.TeeConfig)
 
@@ -156,6 +168,13 @@ func (p *Pipeline) Passthrough(command string, args []string) int {
 	}
 
 	return code
+}
+
+// shouldRestoreRaw reports whether a filter produced an empty (whitespace-only)
+// result from non-empty input. In that case the engine restores the raw output
+// rather than sending nothing to the LLM (issue #85).
+func shouldRestoreRaw(filtered, raw string) bool {
+	return strings.TrimSpace(filtered) == "" && strings.TrimSpace(raw) != ""
 }
 
 // isFilterEnabled returns whether a filter is enabled. A nil map means all

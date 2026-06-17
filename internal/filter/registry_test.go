@@ -1,8 +1,34 @@
 package filter
 
 import (
+	"os"
 	"testing"
 )
+
+// TestDockerBuildScopedToBuild guards against the docker-build filter matching
+// unrelated docker subcommands (e.g. docker run/exec), which would strip their
+// output to nothing. See issue #85. Parses the real shipped filter file.
+func TestDockerBuildScopedToBuild(t *testing.T) {
+	data, err := os.ReadFile("../../filters/docker-build.yaml")
+	if err != nil {
+		t.Fatalf("read docker-build.yaml: %v", err)
+	}
+	f, err := ParseFilter(data)
+	if err != nil {
+		t.Fatalf("parse docker-build.yaml: %v", err)
+	}
+	reg := NewRegistry([]Filter{*f})
+
+	if got := reg.Match("docker", "build", []string{"-t", "app", "."}); got == nil || got.Name != "docker-build" {
+		t.Errorf("docker build should match docker-build, got %v", got)
+	}
+
+	for _, sub := range []string{"run", "exec", "cp", "inspect", "logs"} {
+		if got := reg.Match("docker", sub, []string{"--rm", "ubuntu", "ls"}); got != nil {
+			t.Errorf("docker %s must not match any filter, got %q", sub, got.Name)
+		}
+	}
+}
 
 func makeFilter(name, cmd, subcmd string) Filter {
 	return Filter{
