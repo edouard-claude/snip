@@ -128,6 +128,28 @@ func TestApplyPipelineGracefulDegradation(t *testing.T) {
 	}
 }
 
+func TestShouldRestoreRaw(t *testing.T) {
+	cases := []struct {
+		name     string
+		filtered string
+		raw      string
+		want     bool
+	}{
+		{"emptied non-empty input", "\n", "real output\nmore\n", true},
+		{"whitespace-only result", "   \n\t\n", "real output\n", true},
+		{"normal filtered output", "kept\n", "kept\ndropped\n", false},
+		{"legitimately empty input", "\n", "\n", false},
+		{"both empty", "", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shouldRestoreRaw(tc.filtered, tc.raw); got != tc.want {
+				t.Errorf("shouldRestoreRaw(%q, %q) = %v, want %v", tc.filtered, tc.raw, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestIsFilterEnabledNilMap(t *testing.T) {
 	p := &Pipeline{FilterEnabled: nil}
 	for _, name := range []string{"git-diff", "git-status", "unknown"} {

@@ -1,9 +1,14 @@
 name: "docker-build"
-version: 3
+version: 4
 description: "Condensed docker build: step names, final result, and errors"
 
+# Scoped to `docker build` only. A command-only match used to swallow the
+# output of every docker subcommand (run, exec, cp, ...) because its keep_lines
+# step drops anything that isn't build output (issue #85). Note: `docker buildx
+# build` (subcommand "buildx") is not matched and passes through unfiltered.
 match:
   command: "docker"
+  subcommand: "build"
   exclude_flags: ["--version", "-v"]
 
 streams:
