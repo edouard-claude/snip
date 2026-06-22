@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/edouard-claude/snip/internal/hookaudit"
@@ -54,19 +53,9 @@ func RunPi(r io.Reader, w io.Writer, commands []string, snipBin string) error {
 		return nil
 	}
 
-	firstLine := ti.Command
-	if idx := strings.IndexByte(firstLine, '\n'); idx >= 0 {
-		firstLine = firstLine[:idx]
-	}
-	firstSegment := ExtractFirstSegment(firstLine)
-
-	prefix, envVars, bareCmd := ParseSegment(firstSegment)
-	base := BaseCommand(bareCmd)
-
-	quotedBin := fmt.Sprintf("%q", snipBin)
-	trimmed := strings.TrimLeft(bareCmd, " \t")
-	if base == quotedBin || base == snipBin ||
-		strings.HasPrefix(trimmed, quotedBin) || strings.HasPrefix(trimmed, snipBin) {
+	// Commands with a command substitution or carriage return cannot be safely
+	// segmented or attested; pass through unchanged (#88).
+	if HasUnverifiableConstruct(ti.Command) {
 		return nil
 	}
 
@@ -74,13 +63,17 @@ func RunPi(r io.Reader, w io.Writer, commands []string, snipBin string) error {
 	for _, c := range commands {
 		cmdSet[c] = struct{}{}
 	}
-	if _, ok := cmdSet[base]; !ok {
+
+	res := RewriteCommand(ti.Command, cmdSet, snipBin)
+	if !res.Changed {
 		if audit {
+			base := firstBase(ti.Command)
+			_, matched := cmdSet[base]
 			hookaudit.Append(hookaudit.Event{
 				Timestamp: time.Now().UTC(),
 				Command:   ti.Command,
 				Base:      base,
-				Matched:   false,
+				Matched:   matched,
 				Rewritten: false,
 				Agent:     piAgent,
 			})
@@ -88,29 +81,31 @@ func RunPi(r io.Reader, w io.Writer, commands []string, snipBin string) error {
 		return nil
 	}
 
-	rest := ti.Command[len(firstSegment):]
-	rewritten := prefix + envVars + quotedBin + " run -- " + bareCmd + rest
-
 	var originalInput map[string]any
 	if err := json.Unmarshal(input.ToolInput, &originalInput); err != nil {
 		return nil
 	}
-	originalInput["command"] = rewritten
+	originalInput["command"] = res.Command
 
-	output := map[string]any{
-		"hookSpecificOutput": map[string]any{
-			"hookEventName":            "PreToolUse",
-			"permissionDecision":       "allow",
-			"permissionDecisionReason": "snip auto-rewrite",
-			"updatedInput":             originalInput,
-		},
+	hookOutput := map[string]any{
+		"hookEventName": "PreToolUse",
+		"updatedInput":  originalInput,
 	}
+	// Only auto-allow when every runnable segment is a snip-supported command;
+	// otherwise rewrite for savings but defer the decision so the user is
+	// prompted for the uninspected segment (#88).
+	if res.AllKnown {
+		hookOutput["permissionDecision"] = "allow"
+		hookOutput["permissionDecisionReason"] = "snip auto-rewrite"
+	}
+
+	output := map[string]any{"hookSpecificOutput": hookOutput}
 
 	if audit {
 		hookaudit.Append(hookaudit.Event{
 			Timestamp: time.Now().UTC(),
 			Command:   ti.Command,
-			Base:      base,
+			Base:      firstBase(ti.Command),
 			Matched:   true,
 			Rewritten: true,
 			Agent:     piAgent,
