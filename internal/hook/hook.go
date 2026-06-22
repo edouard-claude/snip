@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/edouard-claude/snip/internal/hookaudit"
@@ -55,67 +54,65 @@ func Run(r io.Reader, w io.Writer, commands []string, snipBin string) error {
 		return nil
 	}
 
-	// Extract first segment (up to unquoted ; | & or newline).
-	firstLine := ti.Command
-	if idx := strings.IndexByte(firstLine, '\n'); idx >= 0 {
-		firstLine = firstLine[:idx]
-	}
-	firstSegment := ExtractFirstSegment(firstLine)
-
-	prefix, envVars, bareCmd := ParseSegment(firstSegment)
-	base := BaseCommand(bareCmd)
-
-	// Skip if already rewritten (starts with snip path).
-	quotedBin := fmt.Sprintf("%q", snipBin)
-	if base == quotedBin || base == snipBin || strings.HasPrefix(strings.TrimLeft(bareCmd, " \t"), quotedBin) || strings.HasPrefix(strings.TrimLeft(bareCmd, " \t"), snipBin) {
+	// Commands containing a command substitution ($(...) or backticks) or a
+	// carriage return cannot be safely segmented or attested: the substituted
+	// content executes without ever being inspected. Pass through unchanged so
+	// Claude Code's confirmation prompt still fires (#88).
+	if HasUnverifiableConstruct(ti.Command) {
 		return nil
 	}
 
-	// Check if base command is supported.
 	cmdSet := make(map[string]struct{}, len(commands))
 	for _, c := range commands {
 		cmdSet[c] = struct{}{}
 	}
-	if _, ok := cmdSet[base]; !ok {
-		// Audit: command not matched.
+
+	// Rewrite every runnable segment whose base command snip supports.
+	res := RewriteCommand(ti.Command, cmdSet, snipBin)
+	if !res.Changed {
+		// Audit: nothing matched (or already rewritten).
 		if audit {
+			base := firstBase(ti.Command)
+			_, matched := cmdSet[base]
 			hookaudit.Append(hookaudit.Event{
 				Timestamp: time.Now().UTC(),
 				Command:   ti.Command,
 				Base:      base,
-				Matched:   false,
+				Matched:   matched,
 				Rewritten: false,
 			})
 		}
 		return nil
 	}
 
-	// Build rewritten command.
-	rest := ti.Command[len(firstSegment):]
-	rewritten := prefix + envVars + quotedBin + " run -- " + bareCmd + rest
-
 	// Preserve all original tool_input fields, replacing command.
 	var originalInput map[string]any
 	if err := json.Unmarshal(input.ToolInput, &originalInput); err != nil {
 		return nil
 	}
-	originalInput["command"] = rewritten
+	originalInput["command"] = res.Command
 
-	output := map[string]any{
-		"hookSpecificOutput": map[string]any{
-			"hookEventName":            "PreToolUse",
-			"permissionDecision":       "allow",
-			"permissionDecisionReason": "snip auto-rewrite",
-			"updatedInput":             originalInput,
-		},
+	hookOutput := map[string]any{
+		"hookEventName": "PreToolUse",
+		"updatedInput":  originalInput,
 	}
+	// Only auto-allow when every runnable segment is a snip-supported command.
+	// If any segment is unknown (e.g. a trailing `&& curl ... | sh`), the
+	// command is still rewritten for token savings but the decision is left to
+	// Claude Code so the user is prompted for the uninspected segment (#88).
+	if res.AllKnown {
+		hookOutput["permissionDecision"] = "allow"
+		hookOutput["permissionDecisionReason"] = "snip auto-rewrite"
+	}
+
+	output := map[string]any{"hookSpecificOutput": hookOutput}
 
 	// Audit: command matched and rewritten.
 	if audit {
 		hookaudit.Append(hookaudit.Event{
 			Timestamp: time.Now().UTC(),
 			Command:   ti.Command,
-			Base:      base,
+			Base:      firstBase(ti.Command),
 			Matched:   true,
 			Rewritten: true,
 		})
