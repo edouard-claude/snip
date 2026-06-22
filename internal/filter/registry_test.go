@@ -30,6 +30,34 @@ func TestDockerBuildScopedToBuild(t *testing.T) {
 	}
 }
 
+// TestGhPrDiffNotCondensed guards against the gh-pr filter matching `gh pr
+// diff`, whose output is a unified diff, not a PR list. Condensing it (head 30 +
+// "... more PRs") truncates the diff and breaks Claude Code's /review flow. The
+// filter must stay scoped to list/view-style subcommands. See issue #87.
+func TestGhPrDiffNotCondensed(t *testing.T) {
+	data, err := os.ReadFile("../../filters/gh-pr.yaml")
+	if err != nil {
+		t.Fatalf("read gh-pr.yaml: %v", err)
+	}
+	f, err := ParseFilter(data)
+	if err != nil {
+		t.Fatalf("parse gh-pr.yaml: %v", err)
+	}
+	reg := NewRegistry([]Filter{*f})
+
+	// gh pr diff must pass through (no filter), so /review gets the full diff.
+	if got := reg.Match("gh", "pr", []string{"diff", "123"}); got != nil {
+		t.Errorf("gh pr diff must not be condensed, matched %q", got.Name)
+	}
+
+	// List/view subcommands still benefit from condensation.
+	for _, args := range [][]string{{"list"}, {"view", "123"}, {"status"}} {
+		if got := reg.Match("gh", "pr", args); got == nil || got.Name != "gh-pr" {
+			t.Errorf("gh pr %v should match gh-pr, got %v", args, got)
+		}
+	}
+}
+
 func makeFilter(name, cmd, subcmd string) Filter {
 	return Filter{
 		Name:    name,
