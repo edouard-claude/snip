@@ -427,6 +427,25 @@ db_path = "${env.XDG_DATA_HOME}/snip/tracking.db"
 
 Tilde expansion (`~/`) is also supported and applied after env var expansion.
 
+### Runner Prefixes
+
+When a command is run through a runner wrapper, snip strips the wrapper, applies the inner command's filter, and leaves the wrapper in place. So `uv run pytest` is filtered by the `pytest` filter with no extra configuration -- no need to copy or duplicate the filter.
+
+```bash
+uv run pytest -v        # filtered by the pytest filter
+uv run --python 3.12 pytest   # runner flags before the command are skipped
+poetry run ruff check .       # filtered by the ruff filter
+```
+
+Built-in prefixes: `uv run`, `poetry run`, `pdm run`, `pipenv run`, `rye run`, `hatch run`, and the shell wrappers `noglob`, `nocorrect`, `command`, `exec`. Add your own (e.g. a container or env wrapper) with `transparent_prefixes`:
+
+```toml
+[filters]
+transparent_prefixes = ["docker exec mycontainer", "direnv exec ."]
+```
+
+Detection is fail-closed: the first non-flag token after the prefix must be a known snip command, otherwise the command passes through untouched. A runner executing an unknown program (e.g. `uv run bash -c ...`) is never rewritten and never auto-allowed, preserving snip's confirmation-prompt guarantee.
+
 ## Design
 
 - **Startup < 10ms** — snip intercepts every shell command; latency is critical

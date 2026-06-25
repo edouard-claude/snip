@@ -240,11 +240,11 @@ func parseSeparatorArgs(args []string, cmdName string) (string, []string, string
 // runHook handles the "snip hook" subcommand for Claude Code PreToolUse.
 // Always returns 0 (graceful degradation).
 func runHook() int {
-	snipBin, commands, ok := loadHookContext()
+	snipBin, commands, prefixes, ok := loadHookContext()
 	if !ok {
 		return 0
 	}
-	_ = hook.Run(os.Stdin, os.Stdout, commands, snipBin)
+	_ = hook.Run(os.Stdin, os.Stdout, commands, prefixes, snipBin)
 	return 0
 }
 
@@ -252,11 +252,11 @@ func runHook() int {
 // Codex cannot rewrite the command in place, so the handler responds with
 // a deny + suggested rewrite. Always returns 0 (graceful degradation).
 func runHookCodex() int {
-	snipBin, commands, ok := loadHookContext()
+	snipBin, commands, prefixes, ok := loadHookContext()
 	if !ok {
 		return 0
 	}
-	_ = hook.RunCodex(os.Stdin, os.Stdout, commands, snipBin)
+	_ = hook.RunCodex(os.Stdin, os.Stdout, commands, prefixes, snipBin)
 	return 0
 }
 
@@ -265,28 +265,28 @@ func runHookCodex() int {
 // which mirrors Claude Code's hookSpecificOutput format. Always returns 0
 // (graceful degradation).
 func runHookPi() int {
-	snipBin, commands, ok := loadHookContext()
+	snipBin, commands, prefixes, ok := loadHookContext()
 	if !ok {
 		return 0
 	}
-	_ = hook.RunPi(os.Stdin, os.Stdout, commands, snipBin)
+	_ = hook.RunPi(os.Stdin, os.Stdout, commands, prefixes, snipBin)
 	return 0
 }
 
 // loadHookContext resolves the snip binary path and loads the filter
 // registry. Returns ok=false on any failure so callers can exit 0 silently.
-func loadHookContext() (snipBin string, commands []string, ok bool) {
+func loadHookContext() (snipBin string, commands []string, prefixes []hook.TransparentPrefix, ok bool) {
 	bin, err := os.Executable()
 	if err != nil {
-		return "", nil, false
+		return "", nil, nil, false
 	}
 	bin, err = filepath.EvalSymlinks(bin)
 	if err != nil {
-		return "", nil, false
+		return "", nil, nil, false
 	}
 	bin, err = filepath.Abs(bin)
 	if err != nil {
-		return "", nil, false
+		return "", nil, nil, false
 	}
 
 	cfg, err := config.Load()
@@ -296,11 +296,12 @@ func loadHookContext() (snipBin string, commands []string, ok bool) {
 
 	filters, err := filter.LoadAll(cfg.Filters.Dirs())
 	if err != nil {
-		return "", nil, false
+		return "", nil, nil, false
 	}
 
 	registry := filter.NewRegistry(filters)
-	return bin, registry.Commands(), true
+	prefixes = hook.MergeTransparentPrefixes(cfg.Filters.TransparentPrefixes)
+	return bin, registry.Commands(), prefixes, true
 }
 
 func runPipeline(command string, args []string, flags Flags) int {

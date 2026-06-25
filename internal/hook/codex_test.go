@@ -39,7 +39,7 @@ func TestRunCodexDeniesSupportedCommand(t *testing.T) {
 
 	input := makePayload("Bash", "git log -10")
 	var out bytes.Buffer
-	if err := RunCodex(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunCodex(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunCodex: %v", err)
 	}
 	if out.Len() == 0 {
@@ -59,7 +59,7 @@ func TestRunCodexUnsupportedPassthrough(t *testing.T) {
 
 	input := makePayload("Bash", "ls -la")
 	var out bytes.Buffer
-	if err := RunCodex(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunCodex(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunCodex: %v", err)
 	}
 	if out.Len() != 0 {
@@ -74,7 +74,7 @@ func TestRunCodexAlreadyRewritten(t *testing.T) {
 	already := `"/usr/local/bin/snip" run -- git status`
 	input := makePayload("Bash", already)
 	var out bytes.Buffer
-	if err := RunCodex(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunCodex(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunCodex: %v", err)
 	}
 	if out.Len() != 0 {
@@ -88,7 +88,7 @@ func TestRunCodexMultiSegmentSuggestionIncludesTail(t *testing.T) {
 
 	input := makePayload("Bash", "git add . && git commit -m 'fix'")
 	var out bytes.Buffer
-	if err := RunCodex(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunCodex(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunCodex: %v", err)
 	}
 
@@ -105,7 +105,7 @@ func TestRunCodexEnvVarPrefix(t *testing.T) {
 
 	input := makePayload("Bash", "CGO_ENABLED=0 go test ./...")
 	var out bytes.Buffer
-	if err := RunCodex(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunCodex(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunCodex: %v", err)
 	}
 
@@ -127,7 +127,7 @@ func TestRunCodexNonBashTool(t *testing.T) {
 	data, _ := json.Marshal(payload)
 
 	var out bytes.Buffer
-	if err := RunCodex(strings.NewReader(string(data)), &out, commands, snipBin); err != nil {
+	if err := RunCodex(strings.NewReader(string(data)), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunCodex: %v", err)
 	}
 	if out.Len() != 0 {
@@ -141,7 +141,7 @@ func TestRunCodexEmptyCommand(t *testing.T) {
 
 	input := makePayload("Bash", "")
 	var out bytes.Buffer
-	if err := RunCodex(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunCodex(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunCodex: %v", err)
 	}
 	if out.Len() != 0 {
@@ -154,7 +154,7 @@ func TestRunCodexMalformedJSON(t *testing.T) {
 	snipBin := "/usr/local/bin/snip"
 
 	var out bytes.Buffer
-	if err := RunCodex(strings.NewReader("{invalid json"), &out, commands, snipBin); err != nil {
+	if err := RunCodex(strings.NewReader("{invalid json"), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunCodex must not error on malformed JSON: %v", err)
 	}
 	if out.Len() != 0 {

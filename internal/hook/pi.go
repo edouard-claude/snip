@@ -28,7 +28,7 @@ const piToolName = "bash"
 //
 // Returns nil on success. Errors are returned but the caller should always
 // exit 0 (graceful degradation).
-func RunPi(r io.Reader, w io.Writer, commands []string, snipBin string) error {
+func RunPi(r io.Reader, w io.Writer, commands []string, prefixes []TransparentPrefix, snipBin string) error {
 	audit := hookaudit.Enabled()
 
 	data, err := io.ReadAll(r)
@@ -64,7 +64,7 @@ func RunPi(r io.Reader, w io.Writer, commands []string, snipBin string) error {
 		cmdSet[c] = struct{}{}
 	}
 
-	res := RewriteCommand(ti.Command, cmdSet, snipBin)
+	res := RewriteCommand(ti.Command, cmdSet, prefixes, snipBin)
 	if !res.Changed {
 		if audit {
 			base := firstBase(ti.Command)

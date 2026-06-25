@@ -32,7 +32,7 @@ type RewriteResult struct {
 // The caller must reject commands containing unverifiable constructs
 // (HasUnverifiableConstruct) before calling this, so cmd here is free of command
 // substitution and carriage returns.
-func RewriteCommand(cmd string, cmdSet map[string]struct{}, snipBin string) RewriteResult {
+func RewriteCommand(cmd string, cmdSet map[string]struct{}, prefixes []TransparentPrefix, snipBin string) RewriteResult {
 	quotedBin := fmt.Sprintf("%q", snipBin)
 
 	var b strings.Builder
@@ -42,7 +42,7 @@ func RewriteCommand(cmd string, cmdSet map[string]struct{}, snipBin string) Rewr
 	allKnown := true
 
 	flush := func(group string) {
-		out, headKnown, hasTail := rewriteGroup(group, cmdSet, quotedBin, snipBin)
+		out, headKnown, hasTail := rewriteGroup(group, cmdSet, prefixes, quotedBin, snipBin)
 		b.WriteString(out)
 		if out != group {
 			changed = true
@@ -114,7 +114,7 @@ func RewriteCommand(cmd string, cmdSet map[string]struct{}, snipBin string) Rewr
 // between two sequential boundaries). It returns the rewritten group, whether
 // the head is a known/attested base command, and whether the group has a
 // non-empty pipeline tail (extra stages that were left uninspected).
-func rewriteGroup(group string, cmdSet map[string]struct{}, quotedBin, snipBin string) (out string, headKnown, hasTail bool) {
+func rewriteGroup(group string, cmdSet map[string]struct{}, prefixes []TransparentPrefix, quotedBin, snipBin string) (out string, headKnown, hasTail bool) {
 	head, tail := splitFirstPipe(group)
 	hasTail = strings.TrimSpace(tail) != ""
 
@@ -129,6 +129,20 @@ func rewriteGroup(group string, cmdSet map[string]struct{}, quotedBin, snipBin s
 	if base == quotedBin || base == snipBin ||
 		strings.HasPrefix(trimmed, quotedBin) || strings.HasPrefix(trimmed, snipBin) {
 		return group, true, hasTail
+	}
+
+	// Transparent runner prefix (e.g. "uv run pytest"): strip the prefix, locate
+	// the inner command, and wrap the inner command so its filter applies. The
+	// prefix is re-prepended unchanged so the wrapped snip still runs inside the
+	// runner's environment. Attempted only when the inner command is a known snip
+	// command; otherwise fall through to the normal base check below. Because the
+	// inner base must be in cmdSet, a runner executing an unknown program
+	// (e.g. "uv run bash -c ...") is never rewritten here and never auto-allowed.
+	if tp, rest, ok := matchTransparentPrefix(bareCmd, prefixes); ok {
+		if before, _, found := LocateInner(rest, cmdSet, tp.ValueFlags, tp.SkipFlags); found {
+			wrappedHead := prefix + envVars + tp.Prefix + " " + before + quotedBin + " run -- " + rest[len(before):]
+			return wrappedHead + tail, true, hasTail
+		}
 	}
 
 	if _, ok := cmdSet[base]; !ok {

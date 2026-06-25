@@ -22,7 +22,7 @@ const codexAgent = "codex"
 // limitation is lifted, this function can return updatedInput like Run does.
 //
 // Always returns nil; the caller must exit 0 (graceful degradation).
-func RunCodex(r io.Reader, w io.Writer, commands []string, snipBin string) error {
+func RunCodex(r io.Reader, w io.Writer, commands []string, prefixes []TransparentPrefix, snipBin string) error {
 	audit := hookaudit.Enabled()
 
 	data, err := io.ReadAll(r)
@@ -67,22 +67,36 @@ func RunCodex(r io.Reader, w io.Writer, commands []string, snipBin string) error
 	for _, c := range commands {
 		cmdSet[c] = struct{}{}
 	}
-	if _, ok := cmdSet[base]; !ok {
-		if audit {
-			hookaudit.Append(hookaudit.Event{
-				Timestamp: time.Now().UTC(),
-				Command:   ti.Command,
-				Base:      base,
-				Matched:   false,
-				Rewritten: false,
-				Agent:     codexAgent,
-			})
+
+	restOfCmd := ti.Command[len(firstSegment):]
+
+	// Transparent runner prefix (e.g. "uv run pytest"): suggest wrapping the
+	// inner command so its filter applies, leaving the prefix in place. Only when
+	// a known inner command is located; otherwise fall back to the plain base
+	// check below.
+	var suggested string
+	if tp, restAfter, ok := matchTransparentPrefix(bareCmd, prefixes); ok {
+		if before, _, found := LocateInner(restAfter, cmdSet, tp.ValueFlags, tp.SkipFlags); found {
+			suggested = prefix + envVars + tp.Prefix + " " + before + quotedBin + " run -- " + restAfter[len(before):] + restOfCmd
 		}
-		return nil
 	}
 
-	rest := ti.Command[len(firstSegment):]
-	suggested := prefix + envVars + quotedBin + " run -- " + bareCmd + rest
+	if suggested == "" {
+		if _, ok := cmdSet[base]; !ok {
+			if audit {
+				hookaudit.Append(hookaudit.Event{
+					Timestamp: time.Now().UTC(),
+					Command:   ti.Command,
+					Base:      base,
+					Matched:   false,
+					Rewritten: false,
+					Agent:     codexAgent,
+				})
+			}
+			return nil
+		}
+		suggested = prefix + envVars + quotedBin + " run -- " + bareCmd + restOfCmd
+	}
 
 	reason := fmt.Sprintf("snip can filter this command. Re-run as: %s", suggested)
 

@@ -29,7 +29,7 @@ type toolInput struct {
 //
 // Returns nil on success. Errors are returned but the caller should always
 // exit 0 (graceful degradation).
-func Run(r io.Reader, w io.Writer, commands []string, snipBin string) error {
+func Run(r io.Reader, w io.Writer, commands []string, prefixes []TransparentPrefix, snipBin string) error {
 	audit := hookaudit.Enabled()
 
 	data, err := io.ReadAll(r)
@@ -68,7 +68,7 @@ func Run(r io.Reader, w io.Writer, commands []string, snipBin string) error {
 	}
 
 	// Rewrite every runnable segment whose base command snip supports.
-	res := RewriteCommand(ti.Command, cmdSet, snipBin)
+	res := RewriteCommand(ti.Command, cmdSet, prefixes, snipBin)
 	if !res.Changed {
 		// Audit: nothing matched (or already rewritten).
 		if audit {
