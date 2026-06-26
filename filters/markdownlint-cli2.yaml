@@ -1,0 +1,49 @@
+name: "markdownlint-cli2"
+version: 1
+description: "Condensed markdownlint-cli2 output: issues by file"
+
+match:
+  command: "markdownlint-cli2"
+
+streams:
+  - stdout
+  - stderr
+
+pipeline:
+  - action: "strip_ansi"
+  - action: "compact_path"
+  - action: "remove_lines"
+    pattern: "^markdownlint-cli2 v"
+  - action: "remove_lines"
+    pattern: "^(Finding|Linting): "
+  - action: "truncate_lines"
+    max: 120
+  - action: "head"
+    n: 30
+    overflow_msg: "... more issues"
+  - action: "on_empty"
+    message: "Summary: 0 error(s)"
+
+on_error: "passthrough"
+
+tests:
+  - name: "banner removed, issues and summary kept"
+    input: |
+      markdownlint-cli2 v0.13.0 (markdownlint v0.34.0)
+      Finding: **/*.md
+      Linting: 3 file(s)
+      Summary: 2 error(s)
+      README.md:12 MD013/line-length Line length [Expected: 80; Actual: 95]
+      docs/guide.md:5:1 MD022/blanks-around-headings Headings should be surrounded by blank lines
+    expected: |
+      Summary: 2 error(s)
+      README.md:12 MD013/line-length Line length [Expected: 80; Actual: 95]
+      docs/guide.md:5:1 MD022/blanks-around-headings Headings should be surrounded by blank lines
+  - name: "clean run keeps only the summary"
+    input: |
+      markdownlint-cli2 v0.13.0 (markdownlint v0.34.0)
+      Finding: **/*.md
+      Linting: 3 file(s)
+      Summary: 0 error(s)
+    expected: |
+      Summary: 0 error(s)
