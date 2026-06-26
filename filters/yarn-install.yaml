@@ -1,9 +1,10 @@
 name: "yarn-install"
-version: 2
-description: "Condensed yarn output: completion summary and errors"
+version: 3
+description: "Condensed yarn install output: completion summary and errors"
 
 match:
   command: "yarn"
+  subcommand: "install"
 
 streams:
   - stdout

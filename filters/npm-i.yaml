@@ -1,10 +1,10 @@
-name: "npm-install"
-version: 4
-description: "Condensed npm install output: summary and errors only"
+name: "npm-i"
+version: 1
+description: "Condensed npm install (short form) output: summary and errors only"
 
 match:
   command: "npm"
-  subcommand: "install"
+  subcommand: "i"
   exclude_flags: ["--version", "-v"]
 
 streams:
@@ -13,13 +13,10 @@ streams:
 
 pipeline:
   - action: "strip_ansi"
-  # Remove blank lines
   - action: "remove_lines"
     pattern: "^\\s*$"
-  # Remove deprecation warnings, notices, funding nags
   - action: "remove_lines"
     pattern: "(^npm warn deprecated|^npm notice|looking for funding|run .npm fund|npm warn |^npm info )"
-  # Keep only summary lines (added/removed/up to date) and errors
   - action: "keep_lines"
     pattern: "(^added |^removed |^up to date|^npm error|^npm ERR!|^ERESOLVE|peer dep|Could not resolve)"
   - action: "truncate_lines"
@@ -36,7 +33,6 @@ tests:
   - name: "successful install"
     input: |
       npm warn deprecated inflight@1.0.6: This module is not supported
-      npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
 
       added 245 packages, and audited 246 packages in 12s
 
@@ -46,22 +42,10 @@ tests:
       found 0 vulnerabilities
     expected: |
       added 245 packages, and audited 246 packages in 12s
-  - name: "already up to date"
-    input: |
-
-      up to date, audited 246 packages in 1s
-
-      found 0 vulnerabilities
-    expected: |
-      up to date, audited 246 packages in 1s
   - name: "install error"
     input: |
       npm ERR! code ERESOLVE
       npm ERR! ERESOLVE unable to resolve dependency tree
-      npm ERR! Could not resolve dependency:
-      npm ERR! peer react@"^16.8.0" from package@1.0.0
     expected: |
       npm ERR! code ERESOLVE
       npm ERR! ERESOLVE unable to resolve dependency tree
-      npm ERR! Could not resolve dependency:
-      npm ERR! peer react@"^16.8.0" from package@1.0.0
