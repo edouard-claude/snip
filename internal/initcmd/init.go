@@ -133,7 +133,14 @@ func Run(args []string) error {
 		return initCodex(snipBin, home, filterDir)
 	case "pi":
 		return initPi(snipBin, home, filterDir)
-	case "windsurf", "cline", "copilot", "gemini", "kilocode", "antigravity":
+	case "copilot":
+		// Copilot CLI defaults to its GA runtime hook; --mode prompt selects the
+		// legacy .github/copilot-instructions.md prompt-injection path.
+		if mode == "prompt" {
+			return initPromptAgent(agent, snipBin, filterDir)
+		}
+		return initCopilotHook(snipBin, home, filterDir)
+	case "windsurf", "cline", "gemini", "kilocode", "antigravity":
 		return initPromptAgent(agent, snipBin, filterDir)
 	}
 	return nil
@@ -259,7 +266,9 @@ func Uninstall(agent string) error {
 		return uninstallCodex()
 	case "pi":
 		return uninstallPi()
-	case "windsurf", "cline", "copilot", "gemini", "kilocode", "antigravity":
+	case "copilot":
+		return uninstallCopilot()
+	case "windsurf", "cline", "gemini", "kilocode", "antigravity":
 		return uninstallPromptAgent(agent)
 	}
 	return nil
