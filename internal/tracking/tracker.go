@@ -2,11 +2,19 @@ package tracking
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 )
+
+// ErrUnavailable reports that token tracking is unavailable because the SQLite
+// database could not be created or opened (e.g. a read-only or sandboxed
+// filesystem where the DB path is unwritable). It wraps the underlying cause.
+// Best-effort callers (the run pipeline) should detect it with errors.Is and
+// degrade silently rather than printing a tracking error on every command.
+var ErrUnavailable = errors.New("tracking unavailable")
 
 // Tracker manages token savings tracking in SQLite.
 type Tracker struct {
@@ -40,13 +48,13 @@ func (t *Tracker) ensureOpen() error {
 	t.once.Do(func() {
 		dir := filepath.Dir(t.dbPath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			t.initErr = fmt.Errorf("create db dir: %w", err)
+			t.initErr = fmt.Errorf("%w: create db dir: %v", ErrUnavailable, err)
 			return
 		}
 
 		db, err := sql.Open("sqlite", t.dbPath)
 		if err != nil {
-			t.initErr = fmt.Errorf("open db: %w", err)
+			t.initErr = fmt.Errorf("%w: open db: %v", ErrUnavailable, err)
 			return
 		}
 
@@ -55,7 +63,7 @@ func (t *Tracker) ensureOpen() error {
 
 		if _, err := db.Exec(createTableSQL); err != nil {
 			_ = db.Close()
-			t.initErr = fmt.Errorf("create table: %w", err)
+			t.initErr = fmt.Errorf("%w: create table: %v", ErrUnavailable, err)
 			return
 		}
 

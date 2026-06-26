@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -175,7 +176,10 @@ func (p *Pipeline) Run(command string, args []string) int {
 		originalCmd := command + " " + strings.Join(fullArgs, " ")
 		snipCmd := command + " " + strings.Join(finalArgs, " ")
 		outputTokens := utils.EstimateTokens(filtered)
-		if err := timed.Track(originalCmd, snipCmd, inputTokens, outputTokens); err != nil {
+		if err := timed.Track(originalCmd, snipCmd, inputTokens, outputTokens); err != nil && !errors.Is(err, tracking.ErrUnavailable) {
+			// A genuine runtime tracking error is surfaced; an unwritable DB
+			// (sandboxed/read-only filesystem) degrades silently so hooks don't
+			// emit a stderr line on every command. See issue #93.
 			fmt.Fprintf(os.Stderr, "snip: tracking error: %v\n", err)
 		}
 	}
