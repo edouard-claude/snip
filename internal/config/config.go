@@ -24,6 +24,11 @@ type Config struct {
 
 type TrackingConfig struct {
 	DBPath string `toml:"db_path"`
+	// TrackUnfiltered, when true, records commands that ran with no matching
+	// filter at all so `snip gain --unfiltered` can surface filter-coverage
+	// gaps. Off by default to keep the passthrough path free of extra work.
+	// See issue #96.
+	TrackUnfiltered bool `toml:"track_unfiltered"`
 }
 
 type DisplayConfig struct {
