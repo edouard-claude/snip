@@ -1,10 +1,10 @@
-name: "pnpm-install"
-version: 3
-description: "Condensed pnpm install output: summary and errors"
+name: "pnpm-i"
+version: 1
+description: "Condensed pnpm install (short form) output: summary and errors"
 
 match:
   command: "pnpm"
-  subcommand: "install"
+  subcommand: "i"
 
 streams:
   - stdout
