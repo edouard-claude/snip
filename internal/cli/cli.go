@@ -346,14 +346,15 @@ func runPipeline(command string, args []string, flags Flags) int {
 	teeCfg.MaxFileSize = cfg.Tee.MaxFileSize
 
 	pipeline := &engine.Pipeline{
-		Registry:      registry,
-		Tracker:       tracker,
-		TeeConfig:     teeCfg,
-		Verbose:       flags.Verbose,
-		UltraCompact:  flags.UltraCompact,
-		QuietNoFilter: cfg.Display.QuietNoFilter,
-		FilterEnabled: projectCfg.Filters.Enable,
-		Config:        projectCfg,
+		Registry:            registry,
+		Tracker:             tracker,
+		TeeConfig:           teeCfg,
+		Verbose:             flags.Verbose,
+		UltraCompact:        flags.UltraCompact,
+		QuietNoFilter:       cfg.Display.QuietNoFilter,
+		FilterEnabled:       projectCfg.Filters.Enable,
+		Config:              projectCfg,
+		TransparentPrefixes: hook.MergeTransparentPrefixes(projectCfg.Filters.TransparentPrefixes),
 	}
 
 	return pipeline.Run(command, args)
