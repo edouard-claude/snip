@@ -33,7 +33,7 @@ func TestRunRewriteSupported(t *testing.T) {
 
 	input := makePayload("Bash", "git log -10")
 	var out bytes.Buffer
-	err := Run(strings.NewReader(input), &out, commands, snipBin)
+	err := Run(strings.NewReader(input), &out, commands, nil, snipBin)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestRunUnsupportedPassthrough(t *testing.T) {
 
 	input := makePayload("Bash", "ls -la")
 	var out bytes.Buffer
-	err := Run(strings.NewReader(input), &out, commands, snipBin)
+	err := Run(strings.NewReader(input), &out, commands, nil, snipBin)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestRunAlreadyRewritten(t *testing.T) {
 	alreadyRewritten := `"/usr/local/bin/snip" run -- git status`
 	input := makePayload("Bash", alreadyRewritten)
 	var out bytes.Buffer
-	err := Run(strings.NewReader(input), &out, commands, snipBin)
+	err := Run(strings.NewReader(input), &out, commands, nil, snipBin)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestRunMultiSegment(t *testing.T) {
 
 	input := makePayload("Bash", "git add . && git commit -m 'fix'")
 	var out bytes.Buffer
-	if err := Run(strings.NewReader(input), &out, commands, snipBin); err != nil {
+	if err := Run(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 
@@ -140,7 +140,7 @@ func TestRunUnattestablePassthrough(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			input := makePayload("Bash", tc.command)
 			var out bytes.Buffer
-			if err := Run(strings.NewReader(input), &out, commands, snipBin); err != nil {
+			if err := Run(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 				t.Fatalf("Run: %v", err)
 			}
 			if out.Len() != 0 {
@@ -174,7 +174,7 @@ func TestRunMixedRewriteNoAllow(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			input := makePayload("Bash", tc.command)
 			var out bytes.Buffer
-			if err := Run(strings.NewReader(input), &out, commands, snipBin); err != nil {
+			if err := Run(strings.NewReader(input), &out, commands, nil, snipBin); err != nil {
 				t.Fatalf("Run: %v", err)
 			}
 			if out.Len() == 0 {
@@ -196,7 +196,7 @@ func TestRunEnvVarPrefix(t *testing.T) {
 
 	input := makePayload("Bash", "CGO_ENABLED=0 go test ./...")
 	var out bytes.Buffer
-	err := Run(strings.NewReader(input), &out, commands, snipBin)
+	err := Run(strings.NewReader(input), &out, commands, nil, snipBin)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestRunEmptyCommand(t *testing.T) {
 
 	input := makePayload("Bash", "")
 	var out bytes.Buffer
-	err := Run(strings.NewReader(input), &out, commands, snipBin)
+	err := Run(strings.NewReader(input), &out, commands, nil, snipBin)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -235,7 +235,7 @@ func TestRunNonBashTool(t *testing.T) {
 	data, _ := json.Marshal(payload)
 
 	var out bytes.Buffer
-	err := Run(strings.NewReader(string(data)), &out, commands, snipBin)
+	err := Run(strings.NewReader(string(data)), &out, commands, nil, snipBin)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -250,7 +250,7 @@ func TestRunMalformedJSON(t *testing.T) {
 	snipBin := "/usr/local/bin/snip"
 
 	var out bytes.Buffer
-	err := Run(strings.NewReader("{invalid json"), &out, commands, snipBin)
+	err := Run(strings.NewReader("{invalid json"), &out, commands, nil, snipBin)
 	if err != nil {
 		t.Fatalf("Run should not return error on malformed JSON: %v", err)
 	}
@@ -266,7 +266,7 @@ func TestRunPermissionDecision(t *testing.T) {
 
 	input := makePayload("Bash", "git status")
 	var out bytes.Buffer
-	_ = Run(strings.NewReader(input), &out, commands, snipBin)
+	_ = Run(strings.NewReader(input), &out, commands, nil, snipBin)
 
 	var result map[string]any
 	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
@@ -288,7 +288,7 @@ func TestRunMultipleEnvVars(t *testing.T) {
 
 	input := makePayload("Bash", "FOO=1 BAR=2 make build")
 	var out bytes.Buffer
-	err := Run(strings.NewReader(input), &out, commands, snipBin)
+	err := Run(strings.NewReader(input), &out, commands, nil, snipBin)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -298,4 +298,41 @@ func TestRunMultipleEnvVars(t *testing.T) {
 	if rewritten != want {
 		t.Errorf("rewritten = %q, want %q", rewritten, want)
 	}
+}
+
+// TestRunTransparentPrefix verifies the full hook flow for a runner-wrapped
+// command: "uv run pytest" is rewritten so the pytest filter applies and is
+// auto-allowed (inner command is known), while "poetry run bash -c ..." is
+// passed through untouched so Claude Code still prompts (#88).
+func TestRunTransparentPrefix(t *testing.T) {
+	commands := []string{"pytest"}
+	snipBin := "/usr/local/bin/snip"
+	prefixes := MergeTransparentPrefixes(nil)
+
+	t.Run("uv run pytest is rewritten and allowed", func(t *testing.T) {
+		input := makePayload("Bash", "uv run --python 3.12 pytest -v")
+		var out bytes.Buffer
+		if err := Run(strings.NewReader(input), &out, commands, prefixes, snipBin); err != nil {
+			t.Fatalf("Run: %v", err)
+		}
+		rewritten := extractRewrittenCommand(t, out.String())
+		want := `uv run --python 3.12 "/usr/local/bin/snip" run -- pytest -v`
+		if rewritten != want {
+			t.Errorf("rewritten = %q, want %q", rewritten, want)
+		}
+		if pd := permissionDecisionOf(t, out.String()); pd != "allow" {
+			t.Errorf("permissionDecision = %q, want allow", pd)
+		}
+	})
+
+	t.Run("runner with unknown inner is passed through", func(t *testing.T) {
+		input := makePayload("Bash", "poetry run bash -c 'rm -rf /'")
+		var out bytes.Buffer
+		if err := Run(strings.NewReader(input), &out, commands, prefixes, snipBin); err != nil {
+			t.Fatalf("Run: %v", err)
+		}
+		if out.Len() != 0 {
+			t.Errorf("expected passthrough (no output), got: %s", out.String())
+		}
+	})
 }

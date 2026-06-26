@@ -38,6 +38,10 @@ type FiltersConfig struct {
 	Global   FilterGlobalConfig        `toml:"global"`
 	Override map[string]FilterOverride `toml:"override"`
 	Bypass   FilterBypassConfig        `toml:"bypass"`
+	// TransparentPrefixes are wrapper commands (e.g. "poetry run",
+	// "docker exec ctr") that snip strips before routing so the inner command
+	// matches its filter. Built-in prefixes (uv run, ...) always apply too.
+	TransparentPrefixes []string `toml:"transparent_prefixes"`
 }
 
 // FilterGlobalConfig applies to all filters in the pipeline.
