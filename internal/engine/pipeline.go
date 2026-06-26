@@ -3,10 +3,12 @@ package engine
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/edouard-claude/snip/internal/config"
 	"github.com/edouard-claude/snip/internal/filter"
+	"github.com/edouard-claude/snip/internal/hook"
 	"github.com/edouard-claude/snip/internal/tee"
 	"github.com/edouard-claude/snip/internal/tracking"
 	"github.com/edouard-claude/snip/internal/utils"
@@ -22,30 +24,46 @@ type Pipeline struct {
 	QuietNoFilter bool
 	FilterEnabled map[string]bool
 	Config        *config.Config // merged user+project config (nil if not loaded)
+	// TransparentPrefixes are runner wrappers (uv run, poetry run, ...) whose
+	// inner command's filter should apply when run directly via `snip <prefix>
+	// <cmd>`. Empty disables transparent unwrapping on the direct-run path.
+	TransparentPrefixes []hook.TransparentPrefix
 }
 
 // Run executes a command through the full pipeline.
 func (p *Pipeline) Run(command string, args []string) int {
-	// Extract subcommand (first non-flag arg)
-	subcommand := ""
-	filterArgs := args
-	if len(args) > 0 {
-		subcommand = args[0]
-		filterArgs = args[1:]
-	}
-
 	// Check if command is in the project-level bypass list.
 	// Bypassed commands pass through unfiltered regardless of filter match.
-	if p.Config != nil {
-		for _, cmd := range p.Config.Filters.Bypass.Commands {
-			if cmd == command {
+	if p.isBypassed(command) {
+		return p.Passthrough(command, args)
+	}
+
+	// Resolve the filter target. fcmd/fargs are the command whose filter applies
+	// and its args; runnerPrefix is the transparent wrapper tokens (e.g. "run",
+	// "--python", "3.12") that precede the inner command and must be replayed at
+	// execution time. For a normal command these are (command, args, nil).
+	fcmd, fargs := command, args
+	var runnerPrefix []string
+
+	subcommand, filterArgs := splitFirstArg(fargs)
+	f := p.Registry.Match(fcmd, subcommand, filterArgs)
+
+	// No direct filter: if command starts with a transparent runner prefix
+	// (uv run, poetry run, ...), unwrap to the inner command so its filter
+	// applies while the full wrapper still executes (issue #95).
+	if f == nil && len(p.TransparentPrefixes) > 0 {
+		if inner, innerArgs, runner, ok := p.unwrapTransparent(command, args); ok {
+			// Honor the bypass list for the inner command too: a bypassed inner
+			// runs the full wrapper unfiltered, mirroring the outer check above.
+			if p.isBypassed(inner) {
 				return p.Passthrough(command, args)
+			}
+			isub, ifilter := splitFirstArg(innerArgs)
+			if f2 := p.Registry.Match(inner, isub, ifilter); f2 != nil {
+				f, fcmd, fargs, runnerPrefix = f2, inner, innerArgs, runner
 			}
 		}
 	}
-
-	// Match filter
-	f := p.Registry.Match(command, subcommand, filterArgs)
 
 	// No filter found: passthrough.
 	// Only print a hint when no filter is registered for the base command at
@@ -67,11 +85,19 @@ func (p *Pipeline) Run(command string, args []string) int {
 		return p.Passthrough(command, args)
 	}
 
-	// Compute injected args
+	// Compute injected args for the (inner) filter, then reattach the runner
+	// prefix so the full wrapper still executes.
 	fullArgs := args
-	finalArgs := args
-	if injected, ok := p.Registry.ShouldInject(f, args); ok {
+	finalArgs := fargs
+	if injected, ok := p.Registry.ShouldInject(f, fargs); ok {
 		finalArgs = injected
+	}
+	if runnerPrefix != nil {
+		exec := make([]string, 0, len(runnerPrefix)+1+len(finalArgs))
+		exec = append(exec, runnerPrefix...)
+		exec = append(exec, fcmd)
+		exec = append(exec, finalArgs...)
+		finalArgs = exec
 	}
 
 	// Start SQLite init concurrently with command execution
@@ -155,6 +181,84 @@ func (p *Pipeline) Run(command string, args []string) int {
 	}
 
 	return result.ExitCode
+}
+
+// isBypassed reports whether command is in the project-level bypass list, which
+// forces unfiltered passthrough regardless of any filter match.
+func (p *Pipeline) isBypassed(command string) bool {
+	if p.Config == nil {
+		return false
+	}
+	for _, cmd := range p.Config.Filters.Bypass.Commands {
+		if cmd == command {
+			return true
+		}
+	}
+	return false
+}
+
+// splitFirstArg returns the first arg (the subcommand) and the remaining args.
+// Both are empty for a no-argument command.
+func splitFirstArg(args []string) (first string, rest []string) {
+	if len(args) > 0 {
+		return args[0], args[1:]
+	}
+	return "", nil
+}
+
+// unwrapTransparent detects a transparent runner prefix (e.g. "uv run") at the
+// head of command+args and locates the inner command so its filter applies
+// while the full wrapper still executes. It returns the inner command token,
+// the inner command's own args, and the runner tokens within args that precede
+// the inner command (e.g. ["run", "--python", "3.12"]). ok is false when no
+// prefix matches or the first non-flag token is not a known snip command — fail
+// closed, mirroring the hook's LocateInner so an argument is never mistaken for
+// the inner command.
+func (p *Pipeline) unwrapTransparent(command string, args []string) (inner string, innerArgs, runnerArgs []string, ok bool) {
+	full := make([]string, 0, len(args)+1)
+	full = append(full, command)
+	full = append(full, args...)
+
+	for _, tp := range p.TransparentPrefixes {
+		pre := strings.Fields(tp.Prefix)
+		if len(pre) == 0 || len(full) <= len(pre) || !prefixMatches(full, pre) {
+			continue
+		}
+		for i := len(pre); i < len(full); i++ {
+			t := full[i]
+			if strings.HasPrefix(t, "-") {
+				if !tp.SkipFlags {
+					break // flag before the inner command: fail closed for this prefix
+				}
+				if tp.ValueFlags[t] && !strings.Contains(t, "=") {
+					i++ // value-taking flag also consumes the next token
+				}
+				continue
+			}
+			// HasAnyFilterForCommand base-normalizes the token, so a path- or
+			// ./-qualified inner command still matches its filter.
+			if p.Registry.HasAnyFilterForCommand(t) {
+				// full[0] is command, so the args index is i-1.
+				return t, full[i+1:], args[:i-1], true
+			}
+			break // first non-flag token is not a known command: fail closed
+		}
+	}
+	return "", nil, nil, false
+}
+
+// prefixMatches reports whether full begins with the prefix tokens, comparing
+// the leading runner by base name so /usr/bin/uv still matches the "uv" prefix.
+func prefixMatches(full, pre []string) bool {
+	if filepath.Base(full[0]) != pre[0] {
+		return false
+	}
+	for i := 1; i < len(pre); i++ {
+		if full[i] != pre[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // Passthrough runs a command directly without filtering.
