@@ -3,9 +3,33 @@
 package tracking
 
 import (
+	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 )
+
+// TestTrackUnwritableDBIsUnavailable verifies that when the tracking DB path is
+// unwritable (sandboxed/read-only filesystem), Track returns an error wrapping
+// ErrUnavailable so best-effort callers can degrade silently (issue #93).
+func TestTrackUnwritableDBIsUnavailable(t *testing.T) {
+	// A regular file used as a parent directory makes os.MkdirAll fail with
+	// ENOTDIR, deterministically simulating an unwritable DB location.
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(blocker, "sub", "tracking.db")
+
+	tr := NewLazyTracker(dbPath)
+	err := tr.Track("git status", "snip run -- git status", 100, 10, 5)
+	if err == nil {
+		t.Fatal("expected an error when the DB path is unwritable")
+	}
+	if !errors.Is(err, ErrUnavailable) {
+		t.Errorf("error %v should wrap ErrUnavailable", err)
+	}
+}
 
 func newTestTracker(t *testing.T) *Tracker {
 	t.Helper()
