@@ -321,6 +321,35 @@ func TestShouldInject(t *testing.T) {
 	}
 }
 
+// TestShouldInjectEmptyArgs guards against a panic when a command is run with no
+// arguments (e.g. `snip pytest`) and the matched filter has an inject block. The
+// else branch indexed args[0] unconditionally; an empty args slice panicked with
+// "index out of range [0] with length 0" (issue #97).
+func TestShouldInjectEmptyArgs(t *testing.T) {
+	f := Filter{
+		Name: "pytest",
+		Inject: &Inject{
+			Args:     []string{"--tb=line", "-q"},
+			Defaults: map[string]string{"--maxfail": "1"},
+		},
+	}
+	reg := NewRegistry(nil)
+
+	args, injected := reg.ShouldInject(&f, nil)
+	if !injected {
+		t.Fatal("expected injection for empty args")
+	}
+	want := []string{"--tb=line", "-q", "--maxfail", "1"}
+	if len(args) != len(want) {
+		t.Fatalf("args = %v, want %v", args, want)
+	}
+	for i := range want {
+		if args[i] != want[i] {
+			t.Errorf("args[%d] = %q, want %q (full: %v)", i, args[i], want[i], args)
+		}
+	}
+}
+
 func TestShouldInjectNoInject(t *testing.T) {
 	f := Filter{Name: "test"}
 	reg := NewRegistry(nil)
