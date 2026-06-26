@@ -65,6 +65,9 @@ func Run(args []string) int {
 		if len(cmdArgs) > 0 && cmdArgs[0] == "pi" {
 			return runHookPi()
 		}
+		if len(cmdArgs) > 0 && cmdArgs[0] == "copilot" {
+			return runHookCopilot()
+		}
 		return runHook()
 
 	case "hook-audit":
@@ -270,6 +273,22 @@ func runHookPi() int {
 		return 0
 	}
 	_ = hook.RunPi(os.Stdin, os.Stdout, commands, prefixes, snipBin)
+	return 0
+}
+
+// runHookCopilot handles "snip hook copilot" — the GitHub Copilot CLI / VS Code
+// PreToolUse hook entry. It parses both the VS Code object shape (tool_input)
+// and the Copilot CLI toolArgs shape (an object, or a JSON-encoded string), and
+// emits the response envelope the detected host expects: hookSpecificOutput
+// (rewrite in updatedInput) for the VS Code object shape, or a flat object whose
+// rewrite lives in modifiedArgs for the Copilot CLI shape.
+// Always returns 0 (graceful degradation).
+func runHookCopilot() int {
+	snipBin, commands, prefixes, ok := loadHookContext()
+	if !ok {
+		return 0
+	}
+	_ = hook.RunCopilot(os.Stdin, os.Stdout, commands, prefixes, snipBin)
 	return 0
 }
 
