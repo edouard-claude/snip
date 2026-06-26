@@ -119,7 +119,16 @@ func (r *Registry) ShouldInject(f *Filter, args []string) ([]string, bool) {
 		}
 		result = append(result, args[dashDashIdx:]...)
 	} else {
-		result = append(result, args[0])
+		// No "--" separator: args[0] is the subcommand (if any), injected flags
+		// follow it, and args[1:] is the rest. Guard the empty case: a command
+		// run with no arguments (e.g. `snip pytest`) has no subcommand, so only
+		// the injected flags are emitted (issue #97).
+		var head, rest []string
+		if len(args) > 0 {
+			head = args[:1]
+			rest = args[1:]
+		}
+		result = append(result, head...)
 		result = append(result, f.Inject.Args...)
 		// Inject defaults before user args so user flags win (last-flag-wins semantics)
 		for flag, val := range f.Inject.Defaults {
@@ -130,7 +139,7 @@ func (r *Registry) ShouldInject(f *Filter, args []string) ([]string, bool) {
 					break
 				}
 			}
-			for _, arg := range args[1:] {
+			for _, arg := range rest {
 				if strings.HasPrefix(arg, flag) {
 					found = true
 					break
@@ -140,7 +149,7 @@ func (r *Registry) ShouldInject(f *Filter, args []string) ([]string, bool) {
 				result = append(result, flag, val)
 			}
 		}
-		result = append(result, args[1:]...)
+		result = append(result, rest...)
 	}
 
 	return result, true
