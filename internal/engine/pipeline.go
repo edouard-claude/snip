@@ -29,6 +29,9 @@ type Pipeline struct {
 	// inner command's filter should apply when run directly via `snip <prefix>
 	// <cmd>`. Empty disables transparent unwrapping on the direct-run path.
 	TransparentPrefixes []hook.TransparentPrefix
+	// TrackUnfiltered records no-filter passthrough commands for coverage
+	// analysis (issue #96). Off keeps the passthrough path free of extra work.
+	TrackUnfiltered bool
 }
 
 // Run executes a command through the full pipeline.
@@ -72,10 +75,14 @@ func (p *Pipeline) Run(command string, args []string) int {
 	// only covers other subcommands (e.g. git-commit but not git checkout),
 	// stay silent to avoid the misleading "no filter for git" message (#56).
 	if f == nil {
-		if !p.QuietNoFilter && !p.Registry.HasAnyFilterForCommand(command) {
+		// hasAny distinguishes "no filter at all for this command" (a genuine
+		// coverage gap, worth recording) from "a filter exists but was excluded
+		// by flags or only covers other subcommands" (already partly covered).
+		hasAny := p.Registry.HasAnyFilterForCommand(command)
+		if !p.QuietNoFilter && !hasAny {
 			fmt.Fprintf(os.Stderr, "snip: no filter for %q, passing through -- you can run %q directly\n", command, command)
 		}
-		return p.Passthrough(command, args)
+		return p.passthroughUnfiltered(command, args, hasAny)
 	}
 
 	// Filter disabled via config: treat as no filter
@@ -263,6 +270,23 @@ func prefixMatches(full, pre []string) bool {
 		}
 	}
 	return true
+}
+
+// passthroughUnfiltered runs a no-filter command via plain Passthrough (the
+// child keeps the terminal's file descriptors directly, so TTY detection and
+// streaming are unchanged). When unfiltered tracking is enabled and the command
+// has no filter at all, it records the invocation afterwards for coverage
+// analysis (issue #96). Recording is best-effort and never affects the outcome.
+func (p *Pipeline) passthroughUnfiltered(command string, args []string, hasAnyFilter bool) int {
+	if !p.TrackUnfiltered || p.Tracker == nil || hasAnyFilter {
+		return p.Passthrough(command, args)
+	}
+
+	p.Tracker.WarmUp()
+	code := p.Passthrough(command, args)
+	full := strings.TrimSpace(command + " " + strings.Join(args, " "))
+	_ = p.Tracker.TrackUnfiltered(command, full)
+	return code
 }
 
 // Passthrough runs a command directly without filtering.

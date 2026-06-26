@@ -16,6 +16,37 @@ CREATE TABLE IF NOT EXISTS commands (
 
 const cleanupSQL = `DELETE FROM commands WHERE timestamp < datetime('now', '-90 days');`
 
+// unfiltered_commands records commands that ran with no matching filter at all,
+// used to surface filter-coverage gaps (issue #96). Only the command name and
+// invocation are stored — the passthrough output is streamed straight to the
+// terminal (never intercepted), so output size is not captured.
+const createUnfilteredTableSQL = `
+CREATE TABLE IF NOT EXISTS unfiltered_commands (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	timestamp DATETIME DEFAULT (datetime('now')),
+	command TEXT NOT NULL,
+	full_cmd TEXT NOT NULL
+);
+`
+
+const insertUnfilteredSQL = `
+INSERT INTO unfiltered_commands (command, full_cmd)
+VALUES (?, ?);
+`
+
+const cleanupUnfilteredSQL = `DELETE FROM unfiltered_commands WHERE timestamp < datetime('now', '-14 days');`
+
+const byUnfilteredSQL = `
+SELECT
+	command,
+	COUNT(*) as count,
+	MAX(timestamp) as last_seen
+FROM unfiltered_commands
+GROUP BY command
+ORDER BY count DESC, last_seen DESC
+LIMIT ?;
+`
+
 const insertSQL = `
 INSERT INTO commands (original_cmd, snip_cmd, input_tokens, output_tokens, saved_tokens, savings_pct, exec_time_ms)
 VALUES (?, ?, ?, ?, ?, ?, ?);
@@ -131,6 +162,14 @@ type CommandStats struct {
 	OutputTokens int
 	SavedTokens  int
 	AvgSavings   float64
+}
+
+// UnfilteredStat holds aggregate stats for a command that ran with no matching
+// filter (issue #96).
+type UnfilteredStat struct {
+	Command  string
+	Count    int
+	LastSeen string
 }
 
 // PeriodStats holds aggregate stats for a time period (week or month).

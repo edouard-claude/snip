@@ -135,6 +135,7 @@ func Run(args []string) int {
 			return 1
 		}
 		fmt.Printf("tracking.db_path: %s\n", cfg.Tracking.DBPath)
+		fmt.Printf("tracking.track_unfiltered: %v\n", cfg.Tracking.TrackUnfiltered)
 		fmt.Printf("filters.dir: %s\n", strings.Join(cfg.Filters.Dirs(), ", "))
 		fmt.Printf("tee.mode: %s\n", cfg.Tee.Mode)
 		fmt.Printf("tee.max_files: %d\n", cfg.Tee.MaxFiles)
@@ -374,6 +375,7 @@ func runPipeline(command string, args []string, flags Flags) int {
 		FilterEnabled:       projectCfg.Filters.Enable,
 		Config:              projectCfg,
 		TransparentPrefixes: hook.MergeTransparentPrefixes(projectCfg.Filters.TransparentPrefixes),
+		TrackUnfiltered:     cfg.Tracking.TrackUnfiltered,
 	}
 
 	return pipeline.Run(command, args)

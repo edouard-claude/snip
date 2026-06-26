@@ -42,6 +42,51 @@ func newTestTracker(t *testing.T) *Tracker {
 	return tracker
 }
 
+func TestTrackUnfiltered(t *testing.T) {
+	tr := newTestTracker(t)
+
+	if err := tr.TrackUnfiltered("cargo", "cargo build"); err != nil {
+		t.Fatalf("track unfiltered: %v", err)
+	}
+	if err := tr.TrackUnfiltered("cargo", "cargo build --release"); err != nil {
+		t.Fatalf("track unfiltered: %v", err)
+	}
+	if err := tr.TrackUnfiltered("make", "make all"); err != nil {
+		t.Fatalf("track unfiltered: %v", err)
+	}
+
+	stats, err := tr.GetUnfiltered(10)
+	if err != nil {
+		t.Fatalf("get unfiltered: %v", err)
+	}
+	if len(stats) != 2 {
+		t.Fatalf("got %d unfiltered commands, want 2", len(stats))
+	}
+	// Ordered by frequency DESC: cargo (2 runs) before make (1 run).
+	if stats[0].Command != "cargo" {
+		t.Errorf("first = %q, want cargo", stats[0].Command)
+	}
+	if stats[0].Count != 2 {
+		t.Errorf("cargo count = %d, want 2", stats[0].Count)
+	}
+	if stats[1].Command != "make" || stats[1].Count != 1 {
+		t.Errorf("second = %q (count %d), want make (1)", stats[1].Command, stats[1].Count)
+	}
+}
+
+// TestGetUnfilteredEmpty verifies an empty result (and table creation) when
+// nothing has been recorded.
+func TestGetUnfilteredEmpty(t *testing.T) {
+	tr := newTestTracker(t)
+	stats, err := tr.GetUnfiltered(10)
+	if err != nil {
+		t.Fatalf("get unfiltered: %v", err)
+	}
+	if len(stats) != 0 {
+		t.Errorf("expected no rows, got %d", len(stats))
+	}
+}
+
 func TestNewTracker(t *testing.T) {
 	tracker := newTestTracker(t)
 	if tracker == nil {

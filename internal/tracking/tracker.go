@@ -67,6 +67,12 @@ func (t *Tracker) ensureOpen() error {
 			return
 		}
 
+		if _, err := db.Exec(createUnfilteredTableSQL); err != nil {
+			_ = db.Close()
+			t.initErr = fmt.Errorf("create unfiltered table: %w", err)
+			return
+		}
+
 		t.db = db
 	})
 	return t.initErr
@@ -97,6 +103,45 @@ func (t *Tracker) Track(originalCmd, snipCmd string, inputTokens, outputTokens i
 // TrackPassthrough records a passthrough (unfiltered) command.
 func (t *Tracker) TrackPassthrough(cmd string, tokens int, execTimeMs int64) error {
 	return t.Track(cmd, cmd, tokens, tokens, execTimeMs)
+}
+
+// TrackUnfiltered records a command that ran with no matching filter so
+// coverage gaps can be surfaced later (issue #96). command is the base command;
+// fullCmd is the full invocation. Best-effort: callers should ignore the error.
+func (t *Tracker) TrackUnfiltered(command, fullCmd string) error {
+	if err := t.ensureOpen(); err != nil {
+		return fmt.Errorf("track unfiltered: %w", err)
+	}
+	if _, err := t.db.Exec(insertUnfilteredSQL, command, fullCmd); err != nil {
+		return fmt.Errorf("track unfiltered: %w", err)
+	}
+	_, _ = t.db.Exec(cleanupUnfilteredSQL)
+	return nil
+}
+
+// GetUnfiltered returns the most frequent unfiltered commands.
+func (t *Tracker) GetUnfiltered(limit int) ([]UnfilteredStat, error) {
+	if err := t.ensureOpen(); err != nil {
+		return nil, fmt.Errorf("unfiltered: %w", err)
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	rows, err := t.db.Query(byUnfilteredSQL, limit)
+	if err != nil {
+		return nil, fmt.Errorf("unfiltered: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var stats []UnfilteredStat
+	for rows.Next() {
+		var s UnfilteredStat
+		if err := rows.Scan(&s.Command, &s.Count, &s.LastSeen); err != nil {
+			return nil, fmt.Errorf("unfiltered scan: %w", err)
+		}
+		stats = append(stats, s)
+	}
+	return stats, rows.Err()
 }
 
 // GetSummary returns aggregate tracking stats.

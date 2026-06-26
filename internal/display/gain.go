@@ -19,17 +19,18 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 
 	// Parse args
 	var (
-		showDaily   bool
-		showWeekly  bool
-		showMonthly bool
-		showJSON    bool
-		showCSV     bool
-		showTop     bool
-		showQuota   bool
-		noTruncate  bool
-		historyN    int
-		topN        int
-		days        = 7
+		showDaily      bool
+		showWeekly     bool
+		showMonthly    bool
+		showJSON       bool
+		showCSV        bool
+		showTop        bool
+		showQuota      bool
+		showUnfiltered bool
+		noTruncate     bool
+		historyN       int
+		topN           int
+		days           = 7
 	)
 
 	for i := 0; i < len(args); i++ {
@@ -48,6 +49,15 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 			showQuota = true
 		case "--top":
 			showTop = true
+			if i+1 < len(args) {
+				_, _ = fmt.Sscanf(args[i+1], "%d", &topN)
+				i++
+			}
+			if topN <= 0 {
+				topN = 10
+			}
+		case "--unfiltered":
+			showUnfiltered = true
 			if i+1 < len(args) {
 				_, _ = fmt.Sscanf(args[i+1], "%d", &topN)
 				i++
@@ -78,6 +88,10 @@ func RunGain(tracker *tracking.Tracker, args []string) error {
 	}
 	if showCSV {
 		return exportCSV(tracker, days)
+	}
+
+	if showUnfiltered {
+		return showUnfilteredCommands(tracker, topN, noTruncate)
 	}
 
 	if historyN > 0 {
@@ -236,6 +250,63 @@ func showByCommand(tracker *tracking.Tracker, limit int, noTruncate bool) error 
 			utils.FormatTokens(s.SavedTokens),
 			ColorSavings(s.AvgSavings),
 			bar,
+		})
+	}
+
+	fmt.Print(FormatTable(headers, rows))
+	fmt.Println()
+	return nil
+}
+
+// showUnfilteredCommands prints the most frequent commands that ran with no
+// matching filter at all — a guide to filter-coverage gaps (issue #96).
+func showUnfilteredCommands(tracker *tracking.Tracker, limit int, noTruncate bool) error {
+	stats, err := tracker.GetUnfiltered(limit)
+	if err != nil {
+		return err
+	}
+
+	tty := IsTerminal()
+	fmt.Println()
+	if tty {
+		fmt.Println(DimStyle.Render("  Unfiltered commands by frequency"))
+	} else {
+		fmt.Println("  Unfiltered commands by frequency")
+	}
+	fmt.Println()
+
+	if len(stats) == 0 {
+		hint := "  (none recorded — enable [tracking] track_unfiltered = true in config.toml)"
+		if tty {
+			fmt.Println(DimStyle.Render(hint))
+		} else {
+			fmt.Println(hint)
+		}
+		fmt.Println()
+		return nil
+	}
+
+	maxRuns := 0
+	for _, s := range stats {
+		if s.Count > maxRuns {
+			maxRuns = s.Count
+		}
+	}
+
+	headers := []string{"Command", "Runs", "Frequency", "Last seen"}
+	var rows [][]string
+	// Fixed columns: Runs(4) + Frequency(12) + Last seen(19) + 3×sep(6) = 41
+	maxCmd := cmdColWidth(TerminalWidth(), 41)
+	for _, s := range stats {
+		cmd := s.Command
+		if !noTruncate && len(cmd) > maxCmd {
+			cmd = cmd[:maxCmd-3] + "..."
+		}
+		rows = append(rows, []string{
+			cmd,
+			fmt.Sprintf("%d", s.Count),
+			ColorBar(s.Count, maxRuns, 12),
+			s.LastSeen,
 		})
 	}
 
