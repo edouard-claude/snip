@@ -422,6 +422,9 @@ dir = "~/.config/snip/filters"
 [filters.enable]
 # git-diff = false       # disable a specific built-in filter
 
+[filters.override.rg]
+# compact_path = false   # keep full paths instead of stripping src/, internal/, ...
+
 [tee]
 enabled = true
 mode = "failures"    # "failures" | "always" | "never"
@@ -434,6 +437,40 @@ max_file_size = 1048576
                            # committed, and snip falls back to the global dir
                            # if the repo root is not writable
 ```
+
+### Tuning a Filter
+
+`[filters.override.<name>]` adjusts a single built-in filter without replacing
+its YAML file. Each key targets one pipeline stage:
+
+| Key | Effect |
+|---|---|
+| `head` | Set the `head` stage's line count |
+| `tail` | Set the `tail` stage's line count |
+| `truncate_lines` | Set the max line length |
+| `keep_lines` | Replace the keep pattern |
+| `remove_lines` | Replace the remove pattern |
+| `compact_path` | `false` removes the `compact_path` stage |
+| `stream_mode` | `"full"` skips the whole pipeline for this filter |
+
+```toml
+[filters.override.rg]
+compact_path = false     # paths stay as ripgrep printed them
+head = 200               # but keep the other savings
+
+[filters.override.tsc]
+compact_path = false     # diagnostics stay openable as file:line
+```
+
+Every key except `compact_path` and `stream_mode` is appended to the pipeline if
+the filter does not already declare that stage. `compact_path` is only ever
+removed, never added, because the stage takes no parameters.
+
+Use `compact_path = false` when the path in the output is meant to be opened or
+parsed — search results and compiler/linter diagnostics — since the stage strips
+a leading `src/`, `lib/`, `internal/`, `pkg/` or `vendor/` segment, and the
+result no longer resolves relative to the working directory. `stream_mode` and
+`[filters.enable]` also restore the paths, but at the cost of every other stage.
 
 ### Multiple Filter Directories
 

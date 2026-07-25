@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -330,6 +331,150 @@ func TestApplyOverrideStreamModeFull(t *testing.T) {
 	if f.Pipeline != nil {
 		t.Errorf("pipeline should be nil after stream_mode=full, got %v", f.Pipeline)
 	}
+}
+
+func TestApplyOverrideCompactPathFalse(t *testing.T) {
+	f := filterForTest("test-filter",
+		filter.Pipeline{
+			{ActionName: "strip_ansi"},
+			{ActionName: "compact_path"},
+			{ActionName: "truncate_lines", Params: map[string]any{"max": 120}},
+		},
+	)
+
+	disabled := false
+	o := config.FilterOverride{CompactPath: &disabled}
+	applyOverride(&f, &o)
+
+	names := actionNames(f.Pipeline)
+	want := []string{"strip_ansi", "truncate_lines"}
+	if !reflect.DeepEqual(names, want) {
+		t.Errorf("pipeline = %v, want %v", names, want)
+	}
+}
+
+// The surrounding stages must keep working, so compact_path removal has to
+// compose with a parameter override applied in the same call.
+func TestApplyOverrideCompactPathFalseWithOtherOverrides(t *testing.T) {
+	f := filterForTest("test-filter",
+		filter.Pipeline{
+			{ActionName: "compact_path"},
+			{ActionName: "truncate_lines", Params: map[string]any{"max": 120}},
+			{ActionName: "head", Params: map[string]any{"n": 50}},
+		},
+	)
+
+	disabled := false
+	o := config.FilterOverride{CompactPath: &disabled, Head: 500}
+	applyOverride(&f, &o)
+
+	names := actionNames(f.Pipeline)
+	want := []string{"truncate_lines", "head"}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("pipeline = %v, want %v", names, want)
+	}
+	if f.Pipeline[1].Params["n"] != 500 {
+		t.Errorf("head n = %v, want 500", f.Pipeline[1].Params["n"])
+	}
+}
+
+// Absent and true must both leave the stage in place: absent is the default for
+// every existing config, and true is the stage's own default behavior.
+func TestApplyOverrideCompactPathKeptWhenNotDisabled(t *testing.T) {
+	enabled := true
+	for name, o := range map[string]config.FilterOverride{
+		"absent": {Head: 25},
+		"true":   {CompactPath: &enabled},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := filterForTest("test-filter",
+				filter.Pipeline{
+					{ActionName: "compact_path"},
+					{ActionName: "head", Params: map[string]any{"n": 10}},
+				},
+			)
+			applyOverride(&f, &o)
+
+			names := actionNames(f.Pipeline)
+			want := []string{"compact_path", "head"}
+			if !reflect.DeepEqual(names, want) {
+				t.Errorf("pipeline = %v, want %v", names, want)
+			}
+		})
+	}
+}
+
+// compact_path takes no parameters, so unlike head/tail/truncate_lines it must
+// never be appended to a filter that did not already declare it.
+func TestApplyOverrideCompactPathNeverAppended(t *testing.T) {
+	disabled := false
+	f := filterForTest("test-filter",
+		filter.Pipeline{
+			{ActionName: "head", Params: map[string]any{"n": 10}},
+		},
+	)
+
+	o := config.FilterOverride{CompactPath: &disabled}
+	applyOverride(&f, &o)
+
+	names := actionNames(f.Pipeline)
+	want := []string{"head"}
+	if !reflect.DeepEqual(names, want) {
+		t.Errorf("pipeline = %v, want %v", names, want)
+	}
+}
+
+// The structural tests above assert on the same action-name literal that
+// applyOverride filters on, so they would both survive a rename that desynced
+// it from the action registry. This one runs the real pipeline and checks the
+// observable effect: with the stage removed, paths must reach the caller
+// exactly as the underlying tool printed them.
+func TestApplyOverrideCompactPathFalseKeepsPathsIntact(t *testing.T) {
+	input := "internal/soak/report.go\nsrc/app/main.go\ncmd/tool/main.go\n"
+
+	pipeline := func() filter.Pipeline {
+		return filter.Pipeline{
+			{ActionName: "strip_ansi"},
+			{ActionName: filter.ActionCompactPath},
+			{ActionName: "head", Params: map[string]any{"n": 50}},
+		}
+	}
+
+	// Control: the stage is what corrupts the paths.
+	base := filterForTest("rg", pipeline())
+	before, err := ApplyPipeline(&base, input)
+	if err != nil {
+		t.Fatalf("ApplyPipeline: %v", err)
+	}
+	if strings.Contains(before, "internal/soak/report.go") {
+		t.Fatal("precondition failed: compact_path did not strip the prefix")
+	}
+	if !strings.Contains(before, "soak/report.go") {
+		t.Fatalf("precondition failed: unexpected output %q", before)
+	}
+
+	disabled := false
+	f := filterForTest("rg", pipeline())
+	o := config.FilterOverride{CompactPath: &disabled}
+	applyOverride(&f, &o)
+
+	after, err := ApplyPipeline(&f, input)
+	if err != nil {
+		t.Fatalf("ApplyPipeline: %v", err)
+	}
+	for _, want := range []string{"internal/soak/report.go", "src/app/main.go", "cmd/tool/main.go"} {
+		if !strings.Contains(after, want) {
+			t.Errorf("output missing %q, got %q", want, after)
+		}
+	}
+}
+
+func actionNames(p filter.Pipeline) []string {
+	names := make([]string, 0, len(p))
+	for _, a := range p {
+		names = append(names, a.ActionName)
+	}
+	return names
 }
 
 func TestApplyGlobalLimit(t *testing.T) {

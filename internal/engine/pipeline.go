@@ -390,10 +390,23 @@ func ApplyPipeline(f *filter.Filter, input string) (string, error) {
 // passthrough). Otherwise, matching pipeline actions are updated with the
 // override values. Override targets not found in the existing pipeline are
 // appended as new actions (consistent with applyGlobalLimit's behavior).
+//
+// compact_path is the exception to that pattern: it takes no parameters, so it
+// is removed rather than reconfigured, and it is never appended.
 func applyOverride(f *filter.Filter, o *config.FilterOverride) {
 	if o.StreamMode == "full" {
 		f.Pipeline = nil
 		return
+	}
+	if o.CompactPath != nil && !*o.CompactPath {
+		kept := make(filter.Pipeline, 0, len(f.Pipeline))
+		for _, action := range f.Pipeline {
+			if action.ActionName == filter.ActionCompactPath {
+				continue
+			}
+			kept = append(kept, action)
+		}
+		f.Pipeline = kept
 	}
 	applied := map[string]bool{}
 	for i, action := range f.Pipeline {

@@ -12,6 +12,11 @@ import (
 	"github.com/edouard-claude/snip/internal/utils"
 )
 
+// ActionCompactPath is the name of the path-compaction action. It is exported
+// because engine.applyOverride removes this stage by name, and a rename that
+// updated only the registry would silently turn that override into a no-op.
+const ActionCompactPath = "compact_path"
+
 // Registry of built-in actions.
 var actions = map[string]ActionFunc{
 	"keep_lines":      keepLines,
@@ -30,7 +35,7 @@ var actions = map[string]ActionFunc{
 	"state_machine":   stateMachine,
 	"aggregate":       aggregate,
 	"format_template": formatTemplate,
-	"compact_path":    compactPath,
+	ActionCompactPath: compactPath,
 	"replace":         replace,
 	"match_output":    matchOutput,
 	"on_empty":        onEmpty,

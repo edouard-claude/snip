@@ -66,6 +66,11 @@ type FilterOverride struct {
 	KeepLines     string `toml:"keep_lines"`
 	RemoveLines   string `toml:"remove_lines"`
 	StreamMode    string `toml:"stream_mode"` // "full" = skip the entire pipeline
+	// CompactPath removes the compact_path stage when set to false. It is a
+	// pointer because the zero value of bool cannot distinguish "explicitly
+	// false" from "absent", and false is the only meaningful setting: the
+	// stage is already present in the filters that declare it.
+	CompactPath *bool `toml:"compact_path"`
 }
 
 // FilterBypassConfig contains commands that should always bypass filtering.

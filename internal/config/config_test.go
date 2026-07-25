@@ -320,6 +320,55 @@ project_marker = ".git"
 	}
 }
 
+// compact_path is a *bool so that "explicitly false" is distinguishable from
+// "absent". Both states must survive TOML decoding, since only the first one
+// removes the stage.
+func TestLoadOverrideCompactPath(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	content := `
+[filters.override.rg]
+compact_path = false
+
+[filters.override.tsc]
+compact_path = true
+
+[filters.override.eslint]
+head = 200
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("SNIP_CONFIG", path)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	rg := cfg.Filters.Override["rg"].CompactPath
+	if rg == nil {
+		t.Fatal("rg compact_path = nil, want explicit false")
+	}
+	if *rg {
+		t.Error("rg compact_path = true, want false")
+	}
+
+	tsc := cfg.Filters.Override["tsc"].CompactPath
+	if tsc == nil {
+		t.Fatal("tsc compact_path = nil, want explicit true")
+	}
+	if !*tsc {
+		t.Error("tsc compact_path = false, want true")
+	}
+
+	if cfg.Filters.Override["eslint"].CompactPath != nil {
+		t.Error("eslint compact_path should stay nil when the key is absent")
+	}
+}
+
 func TestLoadMergedNoProjectConfig(t *testing.T) {
 	// When no .snip/config.toml exists in the directory tree,
 	// LoadMerged should return the user config unchanged.
