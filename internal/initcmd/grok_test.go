@@ -7,6 +7,15 @@ import (
 	"testing"
 )
 
+func TestGrokDenyRerunNoteDescribesOnlyGrok(t *testing.T) {
+	if !strings.Contains(grokDenyRerunNote, "Grok Build hooks cannot rewrite commands in place") {
+		t.Fatalf("Grok limitation missing from init note: %q", grokDenyRerunNote)
+	}
+	if strings.Contains(grokDenyRerunNote, "Codex") {
+		t.Fatalf("Grok init note must not describe Codex as deny-and-rerun: %q", grokDenyRerunNote)
+	}
+}
+
 func TestBuildGrokHookConfig(t *testing.T) {
 	cfg := buildGrokHookConfig(`"/usr/local/bin/snip" hook grok`)
 

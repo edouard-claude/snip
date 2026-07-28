@@ -6,8 +6,8 @@ import (
 )
 
 // snipSuggestion is the outcome of analyzing a command for a deny-and-steer
-// re-run suggestion, used by hosts whose PreToolUse hooks cannot rewrite the
-// command in place (Codex, Grok Build).
+// re-run suggestion, used by Grok Build because its PreToolUse hook cannot
+// rewrite the command in place.
 type snipSuggestion struct {
 	// command is the full suggested re-run command; empty when no snip filter
 	// matched.

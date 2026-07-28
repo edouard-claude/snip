@@ -10,6 +10,9 @@ import (
 // grokHookSubcommand is the snip subsubcommand Grok Build invokes.
 const grokHookSubcommand = "hook grok"
 
+const grokDenyRerunNote = "note: Grok Build hooks cannot rewrite commands in place, so snip denies\n" +
+	"      matched commands with a re-run suggestion."
+
 // grokMatcher is the PreToolUse matcher written to the hook config. The field
 // is a regex tested against the tool name; it covers Grok Build's native shell
 // tool (run_terminal_cmd) and the Claude-style alias (Bash) it also accepts.
@@ -50,8 +53,7 @@ func initGrok(snipBin, home, filterDir string) error {
 	fmt.Printf("  filters: %s\n", filterDir)
 	fmt.Printf("  config: %s\n", path)
 	fmt.Println()
-	fmt.Println("note: Grok Build hooks cannot rewrite commands in place, so snip denies")
-	fmt.Println("      matched commands with a re-run suggestion.")
+	fmt.Println(grokDenyRerunNote)
 	fmt.Println("      Verify the hook is loaded with `grok inspect` or /hooks-list.")
 	fmt.Println("      For the prompt-injection setup instead use:")
 	fmt.Println("        snip init --agent grok --mode prompt")
