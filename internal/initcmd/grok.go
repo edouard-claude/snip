@@ -51,7 +51,7 @@ func initGrok(snipBin, home, filterDir string) error {
 	fmt.Printf("  config: %s\n", path)
 	fmt.Println()
 	fmt.Println("note: Grok Build hooks cannot rewrite commands in place, so snip denies")
-	fmt.Println("      matched commands with a re-run suggestion (same pattern as Codex).")
+	fmt.Println("      matched commands with a re-run suggestion.")
 	fmt.Println("      Verify the hook is loaded with `grok inspect` or /hooks-list.")
 	fmt.Println("      For the prompt-injection setup instead use:")
 	fmt.Println("        snip init --agent grok --mode prompt")

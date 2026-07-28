@@ -262,8 +262,9 @@ func runHook() int {
 }
 
 // runHookCodex handles "snip hook codex" — Codex's PreToolUse hook entry.
-// Codex cannot rewrite the command in place, so the handler responds with
-// a deny + suggested rewrite. Always returns 0 (graceful degradation).
+// Fully attestable commands are rewritten through updatedInput and allowed;
+// mixed or unverifiable commands pass through unchanged. Always returns 0
+// (graceful degradation).
 func runHookCodex() int {
 	snipBin, commands, prefixes, ok := loadHookContext()
 	if !ok {
