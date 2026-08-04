@@ -43,8 +43,8 @@ func TestQuoteBinFor(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := quoteBinFor(tc.path, tc.goos); got != tc.want {
-				t.Errorf("quoteBinFor(%q, %q) = %q, want %q", tc.path, tc.goos, got, tc.want)
+			if got := QuoteBinFor(tc.path, tc.goos); got != tc.want {
+				t.Errorf("QuoteBinFor(%q, %q) = %q, want %q", tc.path, tc.goos, got, tc.want)
 			}
 		})
 	}
@@ -56,7 +56,7 @@ func TestRewriteCommandWindowsBin(t *testing.T) {
 	const bin = `C:\Users\Administrator\.snip\snip.exe`
 	cmdSet := map[string]struct{}{"git": {}}
 
-	got, known, _ := rewriteGroup("git diff --check", cmdSet, nil, quoteBinFor(bin, "windows"), bin)
+	got, known, _ := rewriteGroup("git diff --check", cmdSet, nil, QuoteBinFor(bin, "windows"), bin)
 	want := `C:\Users\Administrator\.snip\snip.exe run -- git diff --check`
 	if got != want {
 		t.Errorf("rewritten = %q, want %q", got, want)
@@ -66,7 +66,7 @@ func TestRewriteCommandWindowsBin(t *testing.T) {
 	}
 
 	// Re-running the hook on its own output must not wrap it twice.
-	again, _, _ := rewriteGroup(want, cmdSet, nil, quoteBinFor(bin, "windows"), bin)
+	again, _, _ := rewriteGroup(want, cmdSet, nil, QuoteBinFor(bin, "windows"), bin)
 	if again != want {
 		t.Errorf("second pass = %q, want it unchanged", again)
 	}

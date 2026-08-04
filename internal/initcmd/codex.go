@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
+	"github.com/edouard-claude/snip/internal/hook"
 	toml "github.com/pelletier/go-toml/v2"
 )
 
@@ -30,25 +32,25 @@ func codexConfigPath(home string) string {
 	return filepath.Join(codexConfigDir(home), "config.toml")
 }
 
-// initCodex installs the snip Codex hook: writes ~/.codex/hooks.json with a
-// PreToolUse entry and patches ~/.codex/config.toml to set
-// [features].codex_hooks = true.
+// initCodex installs the snip Codex hook in ~/.codex/hooks.json. Codex hooks
+// are enabled by default, so config.toml is only read to honour an explicit
+// opt-out and is never written to.
 func initCodex(snipBin, home, filterDir string) error {
+	if err := checkCodexHooksEnabled(codexConfigPath(home)); err != nil {
+		return err
+	}
+
 	if err := os.MkdirAll(codexConfigDir(home), 0o755); err != nil {
 		return fmt.Errorf("create codex config dir: %w", err)
 	}
 
-	hookCommand := snipBin + " " + codexHookSubcommand
+	// Reuse the command-rewrite quoting so the installed hook works with the
+	// platform shell, including cmd.exe on Windows.
+	hookCommand := hook.QuoteBinFor(snipBin, runtime.GOOS) + " " + codexHookSubcommand
 
 	hooksPath := codexHooksPath(home)
 	if err := patchCodexHooks(hooksPath, hookCommand); err != nil {
 		return fmt.Errorf("patch codex hooks: %w", err)
-	}
-
-	configPath := codexConfigPath(home)
-	res, err := patchCodexConfigToml(configPath, true)
-	if err != nil {
-		return fmt.Errorf("patch codex config.toml: %w", err)
 	}
 
 	legacyAgentsMd := detectLegacyAgentsMD(".")
@@ -58,16 +60,11 @@ func initCodex(snipBin, home, filterDir string) error {
 	fmt.Printf("  hook: %s\n", hookCommand)
 	fmt.Printf("  filters: %s\n", filterDir)
 	fmt.Printf("  hooks: %s\n", hooksPath)
-	fmt.Printf("  config: %s ([features].codex_hooks=true)\n", configPath)
 	fmt.Println()
-	fmt.Println("note: Codex hooks require a recent Codex CLI release that supports")
-	fmt.Println("      PreToolUse updatedInput. Supported commands are transparently")
+	fmt.Println("note: Codex hooks require Codex CLI 0.131.0 or later for PreToolUse")
+	fmt.Println("      updatedInput. Supported commands are transparently")
 	fmt.Println("      rewritten through snip. For older Codex releases use:")
 	fmt.Println("      snip init --agent codex --mode prompt")
-	if res.backupWritten {
-		fmt.Printf("      original config.toml backed up to %s.bak (comments are not\n", configPath)
-		fmt.Println("      preserved by the TOML round-trip)")
-	}
 	if legacyAgentsMd != "" {
 		fmt.Printf("      legacy %s detected — remove with `snip init --agent codex --uninstall`\n", legacyAgentsMd)
 		fmt.Println("      or delete it manually if it has been edited or committed")
@@ -76,9 +73,10 @@ func initCodex(snipBin, home, filterDir string) error {
 	return nil
 }
 
-// uninstallCodex removes the snip entry from ~/.codex/hooks.json and flips
-// [features].codex_hooks to false in ~/.codex/config.toml. It also removes a
-// legacy AGENTS.md prompt file if it still matches the snip template.
+// uninstallCodex removes only the snip entry from ~/.codex/hooks.json. It
+// leaves config.toml untouched so it cannot disable the user's other Codex
+// lifecycle hooks. It also removes a legacy AGENTS.md prompt file if it still
+// matches the snip template.
 func uninstallCodex() error {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -88,11 +86,6 @@ func uninstallCodex() error {
 	hooksPath := codexHooksPath(home)
 	if err := unpatchCodexHooks(hooksPath); err != nil {
 		return fmt.Errorf("unpatch codex hooks: %w", err)
-	}
-
-	configPath := codexConfigPath(home)
-	if _, err := patchCodexConfigToml(configPath, false); err != nil {
-		return fmt.Errorf("unpatch codex config.toml: %w", err)
 	}
 
 	// Best-effort cleanup of a legacy AGENTS.md. Skipped when the file is shared
@@ -219,93 +212,49 @@ func isSnipCodexEntry(entry any) bool {
 	return false
 }
 
-// errCodexHooksExplicitlyDisabled is returned when the user has set
-// [features].codex_hooks = false in config.toml and tries to install snip.
-// We refuse to silently flip their explicit choice.
+// errCodexHooksExplicitlyDisabled is returned when the user has disabled
+// Codex hooks in config.toml. We refuse to silently override their choice.
 var errCodexHooksExplicitlyDisabled = errors.New(
-	"~/.codex/config.toml has [features].codex_hooks = false; " +
-		"set it to true (or remove the line) and re-run snip init")
+	"~/.codex/config.toml has [features].hooks = false (or deprecated codex_hooks = false); " +
+		"set it to true (or remove the line) and re-run snip init. " +
+		"Older snip releases wrote codex_hooks = false themselves on uninstall, " +
+		"so the line may not be yours")
 
-// configPatchResult reports the outcome of a config.toml patch so the
-// install summary can decide which warnings to print.
-type configPatchResult struct {
-	// noOp is true when the desired state already matched on disk and no
-	// write happened (comments preserved verbatim).
-	noOp bool
-	// backupWritten is true when an existing file was rewritten and a .bak
-	// was saved alongside. False for fresh installs (no original existed).
-	backupWritten bool
-}
-
-// patchCodexConfigToml sets [features].codex_hooks to enable.
+// checkCodexHooksEnabled reports whether snip may install its Codex hook.
 //
-// When enable is false (uninstall), the key is forced to false rather than
-// deleted so user intent is recorded explicitly.
-//
-// Returns errCodexHooksExplicitlyDisabled when the user has already pinned
-// codex_hooks=false and we'd be installing — we refuse to silently override.
-func patchCodexConfigToml(path string, enable bool) (configPatchResult, error) {
-	mode := os.FileMode(0o600)
+// config.toml is only read, never written: Codex enables hooks by default, so
+// the file has nothing snip needs to add. The deprecated codex_hooks alias is
+// still honoured by Codex, so an existing one is left in place rather than
+// renamed. A config that cannot be read or parsed is an error, not an implicit
+// "no opt-out": silently installing over an unreadable opt-out is the one
+// outcome this check exists to prevent.
+func checkCodexHooksEnabled(path string) error {
 	data, err := os.ReadFile(path)
-	exists := err == nil
-	if err != nil && !os.IsNotExist(err) {
-		return configPatchResult{}, fmt.Errorf("read config.toml: %w", err)
-	}
-	if exists {
-		if info, statErr := os.Stat(path); statErr == nil {
-			mode = info.Mode().Perm()
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
 		}
-	} else {
-		data = nil
+		return fmt.Errorf("read codex config.toml: %w", err)
 	}
 
 	cfg := make(map[string]any)
-	if len(data) > 0 {
-		if err := toml.Unmarshal(data, &cfg); err != nil {
-			return configPatchResult{}, fmt.Errorf("parse config.toml: %w", err)
-		}
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return fmt.Errorf("parse codex config.toml: %w", err)
 	}
 
 	features, _ := cfg["features"].(map[string]any)
-	if features == nil {
-		features = make(map[string]any)
+	if featureFlagDisabled(features, "hooks") || featureFlagDisabled(features, "codex_hooks") {
+		return errCodexHooksExplicitlyDisabled
 	}
+	return nil
+}
 
-	current, present := features["codex_hooks"]
-	currentBool, _ := current.(bool)
-
-	if enable {
-		if present && !currentBool {
-			return configPatchResult{}, errCodexHooksExplicitlyDisabled
-		}
-		if present && currentBool {
-			return configPatchResult{noOp: true}, nil
-		}
-		features["codex_hooks"] = true
-	} else {
-		if present && !currentBool {
-			return configPatchResult{noOp: true}, nil
-		}
-		features["codex_hooks"] = false
-	}
-	cfg["features"] = features
-
-	if exists {
-		_ = os.WriteFile(path+".bak", data, mode)
-	}
-
-	out, err := toml.Marshal(cfg)
-	if err != nil {
-		return configPatchResult{}, fmt.Errorf("marshal config.toml: %w", err)
-	}
-
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return configPatchResult{}, fmt.Errorf("create config dir: %w", err)
-	}
-	if err := os.WriteFile(path, out, mode); err != nil {
-		return configPatchResult{}, fmt.Errorf("write config.toml: %w", err)
-	}
-	return configPatchResult{backupWritten: exists}, nil
+// featureFlagDisabled reports whether key is present in features and set to
+// the boolean false. A missing key or a non-boolean value is not an opt-out.
+func featureFlagDisabled(features map[string]any, key string) bool {
+	value, present := features[key]
+	disabled, isBool := value.(bool)
+	return present && isBool && !disabled
 }
 
 // detectLegacyAgentsMD returns the path to AGENTS.md in dir if its content

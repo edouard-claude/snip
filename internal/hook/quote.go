@@ -9,10 +9,10 @@ import (
 // quoteSnipBin renders the snip binary path for inclusion in a rewritten
 // command, so a path containing spaces still executes as one word.
 func quoteSnipBin(path string) string {
-	return quoteBinFor(path, runtime.GOOS)
+	return QuoteBinFor(path, runtime.GOOS)
 }
 
-// quoteBinFor is quoteSnipBin with the target OS injected, so both branches are
+// QuoteBinFor is quoteSnipBin with the target OS injected, so both branches are
 // testable from any host.
 //
 // Go's %q is a Go string literal, not a shell word, and on Windows it is wrong
@@ -26,7 +26,7 @@ func quoteSnipBin(path string) string {
 // does contain a space still needs the quotes; PowerShell would additionally
 // need its call operator there, which cmd.exe rejects, so the quotes are
 // emitted without guessing which shell is on the other side.
-func quoteBinFor(path, goos string) string {
+func QuoteBinFor(path, goos string) string {
 	if goos == "windows" {
 		if !strings.ContainsAny(path, " \t\"") {
 			return path

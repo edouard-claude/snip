@@ -240,7 +240,7 @@ Use `snip proxy -- <command>` when full unfiltered output is required.
 snip init --agent codex --uninstall
 ```
 
-For older Codex releases without `PreToolUse` input rewriting, use the legacy project-scoped prompt integration:
+Codex CLI 0.131.0 or later is required for `PreToolUse` input rewriting. For older releases, use the legacy project-scoped prompt integration:
 
 ```bash
 snip init --agent codex --mode prompt
