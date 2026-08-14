@@ -537,6 +537,27 @@ max_file_size = 1048576
 > truncation, it is ignored. To get unlimited output from one filter, use
 > `stream_mode = "full"` in its override block.
 
+Full reference for every key, default and merge rule: [Configuration wiki page](https://github.com/edouard-claude/snip/wiki/Configuration).
+
+### Verify Your Configuration
+
+Every setting above is reproducible. To prove one is active without touching your real config, point `SNIP_CONFIG` at a scratch file:
+
+```bash
+cd "$(mktemp -d)" && touch a.go b.md c.txt
+export SNIP_CONFIG=$PWD/test.toml
+
+printf '[filters.override.ls]\nhead = 2\n' > test.toml
+snip ls    # 2 entries + "... +more entries (truncated by snip)"
+
+printf '[filters.bypass]\ncommands = ["ls"]\n' > test.toml
+snip ls    # raw ls output, no filtering
+
+unset SNIP_CONFIG
+```
+
+`snip config` prints the user config snip loads, `snip check -- <command>` names the filter that would handle a command, and `snip -v <command>` shows the filter and injected args as it runs.
+
 ### Project Configuration
 
 A repo can ship its own `.snip/config.toml`; snip walks up from the working directory and uses the first one it finds. The file must be trusted once (`snip trust .snip/config.toml`) and declare `mode = "project"` to override the user config. Project keys that participate in the merge: `filters.enable`, `filters.global`, `filters.override` (project wins), and `filters.bypass.commands` (concatenated, regardless of mode). Typical corporate setup: defaults for every developer live in the repo, personal tweaks stay in `~/.config/snip/config.toml`.
