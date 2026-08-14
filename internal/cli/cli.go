@@ -340,7 +340,10 @@ func loadHookContext() (snipBin string, commands []string, prefixes []hook.Trans
 		return "", nil, nil, false
 	}
 
-	cfg, err := config.Load()
+	// Plugin layer included: a filter shipped by an agent plugin must be
+	// visible here, or its commands would never be rewritten. Project
+	// configs stay out of the hook path (no directory walk-up).
+	cfg, err := config.LoadWithPlugin()
 	if err != nil {
 		cfg = config.DefaultConfig()
 	}
@@ -364,8 +367,9 @@ func runPipeline(command string, args []string, flags Flags) int {
 		cfg = config.DefaultConfig()
 	}
 
-	// Load merged user+project config for filter overrides, bypass, and global
-	// limits. Gracefully defaults to user-only if no .snip/config.toml exists.
+	// Load merged plugin+user+project config for filter overrides, bypass,
+	// and global limits. Gracefully defaults to user-only if no plugin or
+	// .snip/config.toml exists.
 	projectCfg, err := config.LoadMerged()
 	if err != nil && flags.Verbose > 0 {
 		fmt.Fprintf(os.Stderr, "snip: project config error: %v\n", err)
@@ -374,7 +378,8 @@ func runPipeline(command string, args []string, flags Flags) int {
 		projectCfg = cfg
 	}
 
-	filters, err := filter.LoadAll(cfg.Filters.Dirs())
+	// Merged dirs so plugin-shipped filters load too (plugin < user by name).
+	filters, err := filter.LoadAll(projectCfg.Filters.Dirs())
 	if err != nil {
 		display.PrintError(fmt.Sprintf("load filters: %v", err))
 		return 1
