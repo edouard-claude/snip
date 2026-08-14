@@ -224,6 +224,63 @@ dir = ["~/.config/snip/filters", "/project/.snip"]
 	}
 }
 
+func TestLoadConfigArrayDirKeepsAllSections(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	content := `
+mode = "project"
+
+[filters]
+dir = ["~/.config/snip/filters", "/project/.snip"]
+transparent_prefixes = ["direnv exec ."]
+
+[filters.enable]
+git-diff = false
+
+[filters.global]
+max_lines = 500
+
+[filters.override.dotnet-test]
+head = 200
+
+[filters.bypass]
+commands = ["dotnet publish"]
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("SNIP_CONFIG", path)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(cfg.Filters.Dirs()) != 2 {
+		t.Fatalf("expected 2 dirs, got %v", cfg.Filters.Dirs())
+	}
+	if cfg.Mode != "project" {
+		t.Errorf("Mode: got %q, want %q", cfg.Mode, "project")
+	}
+	if enabled, ok := cfg.Filters.Enable["git-diff"]; !ok || enabled {
+		t.Errorf("Enable[git-diff]: got %v/%v, want false/true", enabled, ok)
+	}
+	if cfg.Filters.Global.MaxLines != 500 {
+		t.Errorf("Global.MaxLines: got %d, want 500", cfg.Filters.Global.MaxLines)
+	}
+	if o, ok := cfg.Filters.Override["dotnet-test"]; !ok || o.Head != 200 {
+		t.Errorf("Override[dotnet-test].Head: got %+v/%v, want 200", o, ok)
+	}
+	if len(cfg.Filters.Bypass.Commands) != 1 || cfg.Filters.Bypass.Commands[0] != "dotnet publish" {
+		t.Errorf("Bypass.Commands: got %v, want [dotnet publish]", cfg.Filters.Bypass.Commands)
+	}
+	if len(cfg.Filters.TransparentPrefixes) != 1 || cfg.Filters.TransparentPrefixes[0] != "direnv exec ." {
+		t.Errorf("TransparentPrefixes: got %v, want [direnv exec .]", cfg.Filters.TransparentPrefixes)
+	}
+}
+
 func TestLoadConfigEnvVarExpansion(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.toml")

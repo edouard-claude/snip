@@ -166,12 +166,20 @@ func Load() (*Config, error) {
 }
 
 // tryUnmarshalArrayDir handles the case where filters.dir is a TOML array.
+// The alternative structs must mirror Config and FiltersConfig field for
+// field (only Dir changes type): any section missing here is silently lost
+// whenever filters.dir is an array (#158).
 func tryUnmarshalArrayDir(data []byte, cfg *Config) bool {
 	type filtersArray struct {
-		Dir    []string        `toml:"dir"`
-		Enable map[string]bool `toml:"enable"`
+		Dir                 []string                  `toml:"dir"`
+		Enable              map[string]bool           `toml:"enable"`
+		TransparentPrefixes []string                  `toml:"transparent_prefixes"`
+		Global              FilterGlobalConfig        `toml:"global"`
+		Override            map[string]FilterOverride `toml:"override"`
+		Bypass              FilterBypassConfig        `toml:"bypass"`
 	}
 	type configArray struct {
+		Mode     string         `toml:"mode"`
 		Tracking TrackingConfig `toml:"tracking"`
 		Display  DisplayConfig  `toml:"display"`
 		Filters  filtersArray   `toml:"filters"`
@@ -180,6 +188,7 @@ func tryUnmarshalArrayDir(data []byte, cfg *Config) bool {
 
 	def := DefaultConfig()
 	alt := configArray{
+		Mode:     def.Mode,
 		Tracking: def.Tracking,
 		Display:  def.Display,
 		Filters:  filtersArray{Dir: def.Filters.Dirs()},
@@ -190,10 +199,15 @@ func tryUnmarshalArrayDir(data []byte, cfg *Config) bool {
 		return false
 	}
 
+	cfg.Mode = alt.Mode
 	cfg.Tracking = alt.Tracking
 	cfg.Display = alt.Display
 	cfg.Filters.Dir = alt.Filters.Dir
 	cfg.Filters.Enable = alt.Filters.Enable
+	cfg.Filters.TransparentPrefixes = alt.Filters.TransparentPrefixes
+	cfg.Filters.Global = alt.Filters.Global
+	cfg.Filters.Override = alt.Filters.Override
+	cfg.Filters.Bypass = alt.Filters.Bypass
 	cfg.Tee = alt.Tee
 	return true
 }
