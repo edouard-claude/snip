@@ -1389,3 +1389,209 @@ func TestClaudeProjectsDirFallsBackToHome(t *testing.T) {
 		t.Errorf("ClaudeProjectsDir() = %q, want %q", got, want)
 	}
 }
+
+// pluginTestSetup writes a plugin config, optionally trusts it, and points
+// SNIP_PLUGIN_CONFIG at it. Returns the plugin config path and the temp home.
+func pluginTestSetup(t *testing.T, pluginContent string, trusted bool) (string, string) {
+	t.Helper()
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	pluginDir := canonicalTempDir(t)
+	pluginPath := filepath.Join(pluginDir, "config.toml")
+	if err := os.WriteFile(pluginPath, []byte(pluginContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if trusted {
+		store := make(trust.Store)
+		hash, err := trust.HashFile(pluginPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		store[pluginPath] = hash
+		if err := trust.SaveTo(store, filepath.Join(home, ".config", "snip", "trusted.json")); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_PLUGIN_CONFIG", pluginPath)
+	// Point the user config at a missing file: defaults, no interference.
+	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
+
+	// Run from a directory without any .snip/ so no project layer applies.
+	workDir := t.TempDir()
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(workDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	return pluginPath, home
+}
+
+func TestLoadWithPluginAppliesTrustedLayer(t *testing.T) {
+	pluginDirFilters := t.TempDir()
+	content := `
+[filters]
+dir = "` + pluginDirFilters + `"
+
+[filters.enable]
+git-diff = false
+
+[filters.override.dotnet-test]
+head = 500
+
+[filters.bypass]
+commands = ["dotnet publish"]
+`
+	pluginTestSetup(t, content, true)
+
+	cfg, err := LoadWithPlugin()
+	if err != nil {
+		t.Fatalf("LoadWithPlugin: %v", err)
+	}
+
+	if enabled := cfg.Filters.Enable["git-diff"]; enabled {
+		t.Error("expected git-diff disabled by plugin layer")
+	}
+	if o := cfg.Filters.Override["dotnet-test"]; o.Head != 500 {
+		t.Errorf("Override[dotnet-test].Head: got %d, want 500", o.Head)
+	}
+	if len(cfg.Filters.Bypass.Commands) != 1 || cfg.Filters.Bypass.Commands[0] != "dotnet publish" {
+		t.Errorf("Bypass: got %v", cfg.Filters.Bypass.Commands)
+	}
+	dirs := cfg.Filters.Dirs()
+	if len(dirs) != 2 || dirs[0] != pluginDirFilters {
+		t.Errorf("Dirs: got %v, want plugin dir first then user default", dirs)
+	}
+}
+
+func TestLoadWithPluginUserWins(t *testing.T) {
+	content := `
+[filters.enable]
+git-diff = false
+git-log = false
+
+[filters.global]
+max_lines = 100
+`
+	_, home := pluginTestSetup(t, content, true)
+
+	// User config overrides one plugin key and sets its own global cap.
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	userContent := `
+[filters.enable]
+git-diff = true
+
+[filters.global]
+max_lines = 900
+`
+	if err := os.WriteFile(userPath, []byte(userContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadWithPlugin()
+	if err != nil {
+		t.Fatalf("LoadWithPlugin: %v", err)
+	}
+
+	if enabled := cfg.Filters.Enable["git-diff"]; !enabled {
+		t.Error("user must win over plugin for git-diff")
+	}
+	if enabled := cfg.Filters.Enable["git-log"]; enabled {
+		t.Error("plugin key not overridden by user must survive")
+	}
+	if cfg.Filters.Global.MaxLines != 900 {
+		t.Errorf("Global.MaxLines: got %d, want user's 900", cfg.Filters.Global.MaxLines)
+	}
+}
+
+func TestLoadWithPluginUntrustedWarnsAndIgnores(t *testing.T) {
+	content := `
+[filters.enable]
+git-diff = false
+`
+	pluginPath, _ := pluginTestSetup(t, content, false)
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldStderr := os.Stderr
+	os.Stderr = w
+	cfg, loadErr := LoadWithPlugin()
+	os.Stderr = oldStderr
+	_ = w.Close()
+	captured, _ := io.ReadAll(r)
+	_ = r.Close()
+
+	if loadErr != nil {
+		t.Fatalf("LoadWithPlugin: %v", loadErr)
+	}
+	if _, ok := cfg.Filters.Enable["git-diff"]; ok {
+		t.Error("untrusted plugin config must not apply")
+	}
+	msg := string(captured)
+	if !strings.Contains(msg, "untrusted plugin config") || !strings.Contains(msg, "snip trust "+pluginPath) {
+		t.Errorf("expected stderr warning naming the snip trust command, got %q", msg)
+	}
+}
+
+func TestLoadMergedPluginUserProjectCascade(t *testing.T) {
+	content := `
+[filters.override.dotnet-test]
+head = 100
+
+[filters.override.rg]
+head = 50
+`
+	_, home := pluginTestSetup(t, content, true)
+
+	// Project config overrides dotnet-test; rg must survive from the plugin.
+	projectDir := canonicalTempDir(t)
+	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	projectCfgPath := filepath.Join(projectDir, ".snip", "config.toml")
+	projectContent := `mode = "project"
+
+[filters.override.dotnet-test]
+head = 999
+`
+	if err := os.WriteFile(projectCfgPath, []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Trust both plugin and project files in the same store.
+	pluginPath := os.Getenv("SNIP_PLUGIN_CONFIG")
+	store := make(trust.Store)
+	for _, p := range []string{pluginPath, projectCfgPath} {
+		hash, err := trust.HashFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		store[p] = hash
+	}
+	if err := trust.SaveTo(store, filepath.Join(home, ".config", "snip", "trusted.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	cfg, err := LoadMerged()
+	if err != nil {
+		t.Fatalf("LoadMerged: %v", err)
+	}
+
+	if o := cfg.Filters.Override["dotnet-test"]; o.Head != 999 {
+		t.Errorf("project must win over plugin: got head=%d, want 999", o.Head)
+	}
+	if o := cfg.Filters.Override["rg"]; o.Head != 50 {
+		t.Errorf("plugin key untouched by project must survive: got head=%d, want 50", o.Head)
+	}
+}
