@@ -8,18 +8,22 @@ You are an expert at writing declarative YAML filters for **snip**, a CLI proxy 
 - **User filters**: `~/.config/snip/filters/*.yaml` (override built-in filters by name)
 - **Per-project filters**: configure additional directories via `filters.dir` array in `~/.config/snip/config.toml` (e.g. `dir = ["~/.config/snip/filters", "${env.PWD}/.snip"]`). Later directories take priority.
 
+**Trust store**: filters in any directory outside `~/.config/snip/` are ignored (with a stderr warning) until approved once with `snip trust <dir>`, which pins each file's SHA-256. Re-run `snip trust` after editing a trusted file.
+
 ## Filter Structure
 
 Every filter is a YAML file with this structure:
 
 ```yaml
 name: "tool-subcommand"          # Required. Unique identifier, used for registry lookup.
-version: 1                       # Schema version (always 1 for now).
+version: 1                       # Informational revision number of the filter (bump on behavior change).
 description: "What this filter does"  # Human-readable purpose.
 
 match:                           # Required. When to apply this filter.
   command: "tool"                # Required. The CLI tool name (e.g., "git", "go", "npm").
   subcommand: "sub"             # Optional. First non-flag argument (e.g., "test", "log").
+                                # Also accepts a list: ["install", "add", "i"]; include ""
+                                # in the list to match the bare command invocation too.
   exclude_flags: ["-v", "--json"]  # Optional. Skip filter if user passes any of these.
   require_flags: ["--all"]      # Optional. Only apply if user passes ALL of these.
 
@@ -39,7 +43,8 @@ pipeline:                        # Required. Ordered list of transformation acti
   - action: "head"
     n: 20
 
-on_error: "passthrough"          # What to do if the pipeline fails: "passthrough" or "empty".
+on_error: "passthrough"          # Descriptive convention: the engine ALWAYS falls back to raw
+                                 # output when a pipeline fails; no other value is implemented.
 ```
 
 ## Match Rules
@@ -55,7 +60,7 @@ on_error: "passthrough"          # What to do if the pipeline fails: "passthroug
 - `defaults` only apply if their flag key is not already present in the user's args.
 - If any flag in `skip_if_present` is found, the entire inject block is skipped.
 
-## The 17 Pipeline Actions
+## The 20 Pipeline Actions
 
 ### Line Filtering
 
@@ -72,6 +77,7 @@ on_error: "passthrough"          # What to do if the pipeline fails: "passthroug
 | Action | Params | Description |
 |--------|--------|-------------|
 | `truncate_lines` | `max` (int, default 80), `ellipsis` (string, default "...") | Truncate long lines |
+| `replace` | `pattern` (regex), `replacement` (string, supports $1, $2...) | Regex find and replace on each line |
 | `truncate_bytes` | `max` (int, 0=disabled), `overflow_msg` (string, default "... truncated at {max} bytes") | Cap the whole output at `max` bytes, cutting on a UTF-8 rune boundary. The marker is paid for out of `max`, and is dropped when it alone would not fit |
 | `strip_ansi` | (none) | Remove ANSI escape codes |
 | `compact_path` | (none) | Strips a leading `src/`/`lib/`/`internal/`/`pkg/`/`vendor/` segment. The result may not resolve from the cwd, and carries no marker saying so — no bundled filter uses it. Display-only paths only. |
@@ -82,7 +88,7 @@ on_error: "passthrough"          # What to do if the pipeline fails: "passthroug
 |--------|--------|-------------|
 | `regex_extract` | `pattern` (regex with capture groups), `format` (string using $0, $1, $2...) | Extract data via regex capture groups |
 | `group_by` | `pattern` (regex with capture group), `format` (template, default "{{.Key}}: {{.Count}}"), `top` (int) | Group lines by capture group, count occurrences |
-| `aggregate` | `patterns` (map of name->regex), `format` (Go template) | Count matches for named patterns across all input |
+| `aggregate` | `patterns` (map of name->regex), `format` (Go template), `append` (bool) | Count lines matching named patterns. **Replaces** the input lines with the summary unless `append: true` (forgetting it caused bugs #134/#136: a correct count and no content) |
 | `state_machine` | `states` (map of state definitions with `keep`, `until`, `next`) | Stateful line filtering with transitions |
 
 ### JSON Processing
@@ -93,11 +99,13 @@ on_error: "passthrough"          # What to do if the pipeline fails: "passthroug
 | `json_schema` | `max_depth` (int, default 3) | Output JSON type schema |
 | `ndjson_stream` | `group_by` (string field name), `format` (template with .Key, .Count, .Events) | Process newline-delimited JSON |
 
-### Formatting
+### Formatting & Conditionals
 
 | Action | Params | Description |
 |--------|--------|-------------|
 | `format_template` | `template` (Go text/template, required) | Format output using Go template |
+| `match_output` | `pattern` (regex), `message` (string, default "ok"), `unless` (regex) | If the whole output matches `pattern`, replace it with `message`; `unless` takes priority and passes through |
+| `on_empty` | `message` (string) | Return `message` when the output is empty or whitespace-only |
 
 ### Template Data for `format_template`
 
@@ -106,6 +114,8 @@ The template receives:
 - `{{.count}}` - number of lines
 - `{{.groups}}` - map from `group_by` action (if used earlier in pipeline)
 - `{{.stats}}` - map from `aggregate` action (if used earlier in pipeline)
+
+**`{{.count}}` trap**: it counts the lines *reaching the template*, not entities. After any stage that emits a summary, an overflow marker or a cap, the number is wrong (caused bug #125). Prefer the tool's own count over recomputing one.
 
 ### Metadata Flow Between Actions
 
@@ -119,7 +129,7 @@ The template receives:
 1. **Start with `keep_lines` pattern `"\\S"`** to strip blank lines early.
 2. **Use `inject` to request machine-readable output** (e.g., `--json`, `--porcelain`) then filter that structured data.
 3. **Respect user intent**: use `exclude_flags` to skip filtering when the user explicitly requests a different format.
-4. **Always set `on_error: "passthrough"`** so raw output is returned if filtering fails.
+4. **Keep the conventional `on_error: "passthrough"` line**: it documents the engine's actual fallback behavior (raw output on any pipeline failure).
 5. **Chain actions from broad to specific**: filter noise first, then extract, then format.
 6. **Keep output minimal but useful**: the goal is 60-90% token reduction while preserving actionable information.
 
