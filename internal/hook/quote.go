@@ -2,9 +2,25 @@ package hook
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 )
+
+// runInvocation renders `<quotedBin> [--plugin-config <path>] run -- ` for a
+// rewritten or suggested command. The hook process may carry a plugin
+// configuration through SNIP_PLUGIN_CONFIG (set by an agent plugin's hook
+// entry), but the rewritten command executes later in the agent's shell,
+// which does not inherit the hook's environment. Embedding the path as a
+// flag keeps the plugin layer alive at run time (issue #169). A flag is
+// used instead of a `VAR=x` env prefix so PowerShell keeps working (#150).
+func runInvocation(quotedBin string) string {
+	inv := quotedBin
+	if p := os.Getenv("SNIP_PLUGIN_CONFIG"); p != "" {
+		inv += " --plugin-config " + quoteSnipBin(p)
+	}
+	return inv + " run -- "
+}
 
 // quoteSnipBin renders the snip binary path for inclusion in a rewritten
 // command, so a path containing spaces still executes as one word.

@@ -570,7 +570,7 @@ An agent plugin (for example a Claude Code plugin) can ship a snip config that a
 SNIP_PLUGIN_CONFIG=${CLAUDE_PLUGIN_ROOT}/snip/config.toml
 ```
 
-The file is a regular snip TOML restricted to the filter sections (`filters.enable`, `filters.global`, `filters.override`, `filters.bypass`, `transparent_prefixes`, and `filters.dir` so the plugin can ship its own filter YAMLs; plugin filters load first, so user filters win by name). Like a project config, it must be trusted once:
+The file is a regular snip TOML restricted to the filter sections (`filters.enable`, `filters.global`, `filters.override`, `filters.bypass`, `transparent_prefixes`, and `filters.dir` so the plugin can ship its own filter YAMLs; plugin filters load first, so user filters win by name). A relative `filters.dir` resolves against the TOML's own directory, so `dir = "filters"` just works. The variable only needs to exist in the hook's environment: rewritten commands carry the path along as a `--plugin-config` flag, so the agent's shell needs no special environment. Like a project config, it must be trusted once:
 
 ```bash
 snip trust "$SNIP_PLUGIN_CONFIG"               # the config itself

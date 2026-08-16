@@ -323,6 +323,19 @@ func applyPluginLayer(user *Config) {
 	}
 	plugin.expandPaths()
 
+	// Relative filter dirs resolve against the plugin config's own directory,
+	// so a plugin ships `dir = "filters"` with no env dependency (#169).
+	// DefaultConfig pre-fills Dir with the absolute user filters dir, so only
+	// paths the plugin actually wrote can be relative here.
+	pluginBase := filepath.Dir(path)
+	pluginDirs := plugin.Filters.Dirs()
+	for i, d := range pluginDirs {
+		if !filepath.IsAbs(d) {
+			pluginDirs[i] = filepath.Join(pluginBase, d)
+		}
+	}
+	plugin.Filters.Dir = pluginDirs
+
 	// Enable and Override: plugin provides the base, user keys win.
 	if len(plugin.Filters.Enable) > 0 {
 		merged := make(map[string]bool, len(plugin.Filters.Enable)+len(user.Filters.Enable))

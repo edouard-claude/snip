@@ -46,7 +46,7 @@ func suggestSnipRerun(command string, cmdSet map[string]struct{}, prefixes []Tra
 	var suggested string
 	if tp, restAfter, ok := matchTransparentPrefix(bareCmd, prefixes); ok {
 		if before, _, found := LocateInner(restAfter, cmdSet, tp.ValueFlags, tp.SkipFlags); found {
-			suggested = prefix + envVars + tp.Prefix + " " + before + quotedBin + " run -- " + restAfter[len(before):] + restOfCmd
+			suggested = prefix + envVars + tp.Prefix + " " + before + runInvocation(quotedBin) + restAfter[len(before):] + restOfCmd
 		}
 	}
 
@@ -54,7 +54,7 @@ func suggestSnipRerun(command string, cmdSet map[string]struct{}, prefixes []Tra
 		if _, ok := cmdSet[base]; !ok {
 			return snipSuggestion{base: base}
 		}
-		suggested = prefix + envVars + quotedBin + " run -- " + bareCmd + restOfCmd
+		suggested = prefix + envVars + runInvocation(quotedBin) + bareCmd + restOfCmd
 	}
 
 	return snipSuggestion{command: suggested, base: base}

@@ -1652,3 +1652,25 @@ head = 999
 		t.Errorf("plugin key untouched by project must survive: got head=%d, want 50", o.Head)
 	}
 }
+
+func TestPluginRelativeDirsResolveAgainstConfigFile(t *testing.T) {
+	// A plugin ships `dir = "filters"` next to its config.toml; the path must
+	// resolve against the TOML's own directory, so the plugin needs no
+	// ${env.CLAUDE_PLUGIN_ROOT} in the file (issue #169).
+	content := `
+[filters]
+dir = "filters"
+`
+	pluginPath, _ := pluginTestSetup(t, content, true)
+
+	cfg, err := LoadWithPlugin()
+	if err != nil {
+		t.Fatalf("LoadWithPlugin: %v", err)
+	}
+
+	want := filepath.Join(filepath.Dir(pluginPath), "filters")
+	dirs := cfg.Filters.Dirs()
+	if len(dirs) < 1 || dirs[0] != want {
+		t.Errorf("Dirs: got %v, want first entry %q", dirs, want)
+	}
+}

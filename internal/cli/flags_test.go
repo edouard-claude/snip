@@ -165,3 +165,23 @@ func TestParseFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestParseFlagsPluginConfig(t *testing.T) {
+	flags, remaining := ParseFlags([]string{"--plugin-config", "/plug/config.toml", "run", "--", "git", "status"})
+	if flags.PluginConfig != "/plug/config.toml" {
+		t.Errorf("PluginConfig: got %q, want /plug/config.toml", flags.PluginConfig)
+	}
+	if len(remaining) != 4 || remaining[0] != "run" || remaining[1] != "--" {
+		t.Errorf("remaining: got %v, want [run -- git status]", remaining)
+	}
+}
+
+func TestParseFlagsPluginConfigMissingValue(t *testing.T) {
+	flags, remaining := ParseFlags([]string{"--plugin-config"})
+	if flags.PluginConfig != "" {
+		t.Errorf("PluginConfig: got %q, want empty", flags.PluginConfig)
+	}
+	if len(remaining) != 0 {
+		t.Errorf("remaining: got %v, want empty", remaining)
+	}
+}
