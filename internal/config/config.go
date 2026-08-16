@@ -291,10 +291,12 @@ func LoadMerged() (*Config, error) {
 	// disables filtering, injects ReDoS regex, or adds bypass commands.
 	store, err := trust.Load()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "snip: ignoring untrusted project config %s (trust store unreadable: %v)\n", projectPath, err)
 		return user, nil // no trust store = no project configs trusted
 	}
 	if !trust.IsTrusted(store, projectPath) {
-		return user, nil // untrusted: silently fall back to user config only
+		fmt.Fprintf(os.Stderr, "snip: ignoring untrusted project config %s (run 'snip trust %s' to trust)\n", projectPath, projectPath)
+		return user, nil // untrusted: fall back to user config only
 	}
 
 	project := DefaultConfig()

@@ -1,8 +1,10 @@
 package config
 
 import (
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/edouard-claude/snip/internal/trust"
@@ -410,6 +412,68 @@ quiet_no_filter = true
 	}
 	if !cfg.Display.QuietNoFilter {
 		t.Error("expected user QuietNoFilter preserved")
+	}
+}
+
+func TestLoadMergedUntrustedProjectConfigWarns(t *testing.T) {
+	// Bug #164: an existing but untrusted .snip/config.toml was ignored
+	// with no message at all. It must warn on stderr, naming the exact
+	// `snip trust` command, while still falling back to the user config.
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	if err := os.MkdirAll(filepath.Join(home, ".config", "snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	userPath := filepath.Join(home, ".config", "snip", "config.toml")
+	if err := os.WriteFile(userPath, []byte("[display]\nquiet_no_filter = true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectDir := canonicalTempDir(t)
+	if err := os.MkdirAll(filepath.Join(projectDir, ".snip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	projectCfgPath := filepath.Join(projectDir, ".snip", "config.toml")
+	projectContent := `mode = "project"
+
+[filters.enable]
+git-diff = false
+`
+	if err := os.WriteFile(projectCfgPath, []byte(projectContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// No trust store entry: the project config must NOT apply.
+
+	t.Setenv("HOME", home)
+	t.Setenv("SNIP_CONFIG", userPath)
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectDir)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldStderr := os.Stderr
+	os.Stderr = w
+	cfg, mergedErr := LoadMerged()
+	os.Stderr = oldStderr
+	_ = w.Close()
+	captured, _ := io.ReadAll(r)
+	_ = r.Close()
+
+	if mergedErr != nil {
+		t.Fatalf("LoadMerged: %v", mergedErr)
+	}
+	if !cfg.Display.QuietNoFilter {
+		t.Error("expected user config to remain in effect")
+	}
+	if enabled, ok := cfg.Filters.Enable["git-diff"]; ok && !enabled {
+		t.Error("untrusted project config must not apply")
+	}
+	msg := string(captured)
+	if !strings.Contains(msg, "untrusted project config") || !strings.Contains(msg, "snip trust "+projectCfgPath) {
+		t.Errorf("expected stderr warning naming the snip trust command, got %q", msg)
 	}
 }
 
