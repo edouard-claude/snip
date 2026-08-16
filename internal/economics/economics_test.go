@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/edouard-claude/snip/internal/config"
 	"github.com/edouard-claude/snip/internal/tracking"
 )
 
@@ -98,33 +99,36 @@ func TestTierByName(t *testing.T) {
 		{"opus", "Opus"},
 	}
 
+	defaults := ActiveTiers(config.EconomicsConfig{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tier := TierByName(tt.name)
+			tier := FindTier(defaults, tt.name)
 			if tier == nil {
-				t.Fatalf("TierByName(%q) returned nil", tt.name)
+				t.Fatalf("FindTier(%q) returned nil", tt.name)
 			}
 			if tier.Name != tt.want {
-				t.Errorf("TierByName(%q).Name = %q, want %q", tt.name, tier.Name, tt.want)
+				t.Errorf("FindTier(%q).Name = %q, want %q", tt.name, tier.Name, tt.want)
 			}
 		})
 	}
 }
 
 func TestTierByNameUnknown(t *testing.T) {
-	tier := TierByName("unknown")
+	tier := FindTier(ActiveTiers(config.EconomicsConfig{}), "unknown")
 	if tier != nil {
-		t.Errorf("TierByName(\"unknown\") = %v, want nil", tier)
+		t.Errorf("FindTier(\"unknown\") = %v, want nil", tier)
 	}
 }
 
 func TestTierPricing(t *testing.T) {
+	// Current Anthropic list prices, $ per 1M input tokens (2026-08).
 	expected := map[string]float64{
-		"Haiku":  0.25,
+		"Haiku":  1.00,
 		"Sonnet": 3.00,
-		"Opus":   15.00,
+		"Opus":   5.00,
+		"Fable":  10.00,
 	}
-	for _, tier := range Tiers {
+	for _, tier := range ActiveTiers(config.EconomicsConfig{}) {
 		want, ok := expected[tier.Name]
 		if !ok {
 			t.Errorf("unexpected tier %q", tier.Name)
@@ -137,7 +141,7 @@ func TestTierPricing(t *testing.T) {
 }
 
 func TestRunNilTracker(t *testing.T) {
-	err := Run(nil, nil)
+	err := Run(nil, config.EconomicsConfig{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -155,7 +159,7 @@ func TestRunWithData(t *testing.T) {
 	}
 	os.Stdout = w
 
-	runErr := Run(tracker, nil)
+	runErr := Run(tracker, config.EconomicsConfig{}, nil)
 
 	_ = w.Close()
 	var buf bytes.Buffer
@@ -193,7 +197,7 @@ func TestRunWithTierFilter(t *testing.T) {
 	}
 	os.Stdout = w
 
-	runErr := Run(tracker, []string{"--tier", "sonnet"})
+	runErr := Run(tracker, config.EconomicsConfig{}, []string{"--tier", "sonnet"})
 
 	_ = w.Close()
 	var buf bytes.Buffer
@@ -220,30 +224,11 @@ func TestRunUnknownTier(t *testing.T) {
 	tracker := newTestTracker(t)
 	seedTracker(t, tracker)
 
-	err := Run(tracker, []string{"--tier", "gpt4"})
+	err := Run(tracker, config.EconomicsConfig{}, []string{"--tier", "gpt4"})
 	if err == nil {
 		t.Fatal("expected error for unknown tier")
 	}
 	if !strings.Contains(err.Error(), "unknown tier") {
 		t.Errorf("expected 'unknown tier' error, got: %v", err)
-	}
-}
-
-func TestEqFold(t *testing.T) {
-	tests := []struct {
-		a, b string
-		want bool
-	}{
-		{"Haiku", "haiku", true},
-		{"HAIKU", "haiku", true},
-		{"haiku", "haiku", true},
-		{"haiku", "sonnet", false},
-		{"abc", "abcd", false},
-	}
-	for _, tt := range tests {
-		got := eqFold(tt.a, tt.b)
-		if got != tt.want {
-			t.Errorf("eqFold(%q, %q) = %v, want %v", tt.a, tt.b, got, tt.want)
-		}
 	}
 }
