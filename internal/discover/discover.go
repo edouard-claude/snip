@@ -126,11 +126,17 @@ func parseArgs(args []string) Options {
 }
 
 // cwdToProjectName converts a working directory path to the Claude Code
-// project directory name format: slashes become dashes, leading slash stripped.
+// project directory name format: every non-alphanumeric rune becomes a dash.
+// e.g. /Users/edouard/Code/go/snip -> -Users-edouard-Code-go-snip
+//
+//	C:\dev\acme\agentic-acme-polishing -> C--dev-acme-agentic-acme-polishing
 func cwdToProjectName(cwd string) string {
-	// Claude Code uses the absolute path with "/" replaced by "-"
-	// e.g. /Users/edouard/Code/go/snip -> -Users-edouard-Code-go-snip
-	return strings.ReplaceAll(cwd, string(os.PathSeparator), "-")
+	return strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' {
+			return r
+		}
+		return '-'
+	}, cwd)
 }
 
 // findProjectDirs returns the list of Claude Code project directories to scan.

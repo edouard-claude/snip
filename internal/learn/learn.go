@@ -198,9 +198,14 @@ func parseArgs(args []string) Options {
 }
 
 // cwdToProjectName converts a working directory path to the Claude Code
-// project directory name format.
+// project directory name format: every non-alphanumeric rune becomes a dash.
 func cwdToProjectName(cwd string) string {
-	return strings.ReplaceAll(cwd, string(os.PathSeparator), "-")
+	return strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' {
+			return r
+		}
+		return '-'
+	}, cwd)
 }
 
 // findProjectDirs returns the list of Claude Code project directories to scan.
