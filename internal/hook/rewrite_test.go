@@ -290,3 +290,36 @@ func TestHasUnverifiableConstruct(t *testing.T) {
 		}
 	}
 }
+
+func TestRewriteEmbedsPluginConfigFlag(t *testing.T) {
+	// Issue #169: the rewritten command runs in the agent's shell, which does
+	// not inherit the hook's environment. When the hook itself was started
+	// with SNIP_PLUGIN_CONFIG, the path must travel inside the rewritten
+	// command as a portable flag, or the plugin layer silently vanishes at
+	// run time.
+	t.Setenv("SNIP_PLUGIN_CONFIG", "/plug/snip/config.toml")
+
+	cmdSet := map[string]struct{}{"git": {}}
+	res := RewriteCommand("git status", cmdSet, nil, "/usr/local/bin/snip")
+	if !res.Changed {
+		t.Fatal("expected rewrite")
+	}
+	want := `"/usr/local/bin/snip" --plugin-config "/plug/snip/config.toml" run -- git status`
+	if res.Command != want {
+		t.Errorf("got  %q\nwant %q", res.Command, want)
+	}
+}
+
+func TestRewriteNoPluginConfigFlagWhenUnset(t *testing.T) {
+	t.Setenv("SNIP_PLUGIN_CONFIG", "")
+
+	cmdSet := map[string]struct{}{"git": {}}
+	res := RewriteCommand("git status", cmdSet, nil, "/usr/local/bin/snip")
+	if !res.Changed {
+		t.Fatal("expected rewrite")
+	}
+	want := `"/usr/local/bin/snip" run -- git status`
+	if res.Command != want {
+		t.Errorf("got  %q\nwant %q", res.Command, want)
+	}
+}

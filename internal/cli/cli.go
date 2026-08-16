@@ -46,6 +46,13 @@ func Run(args []string) int {
 		return 0
 	}
 
+	// A hook-rewritten command carries the plugin config as a flag because
+	// the agent's shell does not inherit the hook's environment (#169).
+	// Export it so every config.Load* call below sees the plugin layer.
+	if flags.PluginConfig != "" {
+		_ = os.Setenv("SNIP_PLUGIN_CONFIG", flags.PluginConfig)
+	}
+
 	command := remaining[0]
 	cmdArgs := remaining[1:]
 

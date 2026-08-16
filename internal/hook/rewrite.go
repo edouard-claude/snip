@@ -281,7 +281,7 @@ func rewriteGroup(group string, cmdSet map[string]struct{}, prefixes []Transpare
 			if feedsConsumer {
 				return group, true, hasTail
 			}
-			wrappedHead := prefix + envVars + tp.Prefix + " " + before + quotedBin + " run -- " + rest[len(before):]
+			wrappedHead := prefix + envVars + tp.Prefix + " " + before + runInvocation(quotedBin) + rest[len(before):]
 			return wrappedHead + tail, true, hasTail
 		}
 	}
@@ -295,7 +295,7 @@ func rewriteGroup(group string, cmdSet map[string]struct{}, prefixes []Transpare
 		return group, true, hasTail
 	}
 
-	wrappedHead := prefix + envVars + quotedBin + " run -- " + bareCmd
+	wrappedHead := prefix + envVars + runInvocation(quotedBin) + bareCmd
 	return wrappedHead + tail, true, hasTail
 }
 
