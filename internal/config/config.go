@@ -266,11 +266,118 @@ func projectConfigPath() string {
 	return ""
 }
 
-// LoadMerged loads the user config, then layers the project config on top.
-// When mode == "project", the project config's filter settings override the
-// user's. When mode == "user" (default), user settings take priority.
-func LoadMerged() (*Config, error) {
+// pluginConfigPath returns the config path provided by an agent plugin
+// through SNIP_PLUGIN_CONFIG (e.g. a Claude Code plugin hook exporting
+// SNIP_PLUGIN_CONFIG=${CLAUDE_PLUGIN_ROOT}/snip/config.toml), or "" when
+// no plugin layer is present.
+func pluginConfigPath() string {
+	return os.Getenv("SNIP_PLUGIN_CONFIG")
+}
+
+// LoadWithPlugin returns the user config with the plugin layer, if any,
+// merged underneath it: plugin < user. Only the filter sections participate
+// (enable, global, override, bypass, transparent_prefixes, dir), matching
+// what a project config can influence. filters.dir concatenates plugin
+// directories before the user's, so user filters override plugin filters
+// by name. The plugin file must be trusted (`snip trust <path>`); an
+// untrusted or unreadable plugin layer is skipped with a stderr warning.
+func LoadWithPlugin() (*Config, error) {
 	user, err := Load()
+	if err != nil {
+		return nil, err
+	}
+	applyPluginLayer(user)
+	return user, nil
+}
+
+// applyPluginLayer merges the SNIP_PLUGIN_CONFIG file underneath the user
+// config in place. The user's explicit settings win over the plugin's.
+func applyPluginLayer(user *Config) {
+	path := pluginConfigPath()
+	if path == "" {
+		return
+	}
+
+	store, err := trust.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "snip: ignoring untrusted plugin config %s (trust store unreadable: %v)\n", path, err)
+		return
+	}
+	if !trust.IsTrusted(store, path) {
+		fmt.Fprintf(os.Stderr, "snip: ignoring untrusted plugin config %s (run 'snip trust %s' to trust)\n", path, path)
+		return
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "snip: ignoring unreadable plugin config %s: %v\n", path, err)
+		return
+	}
+	plugin := DefaultConfig()
+	if err := toml.Unmarshal(data, plugin); err != nil {
+		plugin = DefaultConfig()
+		if !tryUnmarshalArrayDir(data, plugin) {
+			fmt.Fprintf(os.Stderr, "snip: ignoring invalid plugin config %s: %v\n", path, err)
+			return
+		}
+	}
+	plugin.expandPaths()
+
+	// Enable and Override: plugin provides the base, user keys win.
+	if len(plugin.Filters.Enable) > 0 {
+		merged := make(map[string]bool, len(plugin.Filters.Enable)+len(user.Filters.Enable))
+		for k, v := range plugin.Filters.Enable {
+			merged[k] = v
+		}
+		for k, v := range user.Filters.Enable {
+			merged[k] = v
+		}
+		user.Filters.Enable = merged
+	}
+	if len(plugin.Filters.Override) > 0 {
+		merged := make(map[string]FilterOverride, len(plugin.Filters.Override)+len(user.Filters.Override))
+		for k, v := range plugin.Filters.Override {
+			merged[k] = v
+		}
+		for k, v := range user.Filters.Override {
+			merged[k] = v
+		}
+		user.Filters.Override = merged
+	}
+
+	// Global caps: the user's own block wins entirely when set at all.
+	if user.Filters.Global == (FilterGlobalConfig{}) {
+		user.Filters.Global = plugin.Filters.Global
+	}
+
+	// Bypass and transparent prefixes accumulate from both layers.
+	user.Filters.Bypass.Commands = append(
+		append([]string{}, plugin.Filters.Bypass.Commands...),
+		user.Filters.Bypass.Commands...)
+	user.Filters.TransparentPrefixes = append(
+		append([]string{}, plugin.Filters.TransparentPrefixes...),
+		user.Filters.TransparentPrefixes...)
+
+	// Filter directories: plugin dirs first, user dirs last (later dirs
+	// win by filter name in the loader). Skip duplicates.
+	seen := make(map[string]bool)
+	var dirs []string
+	for _, d := range append(plugin.Filters.Dirs(), user.Filters.Dirs()...) {
+		if d != "" && !seen[d] {
+			seen[d] = true
+			dirs = append(dirs, d)
+		}
+	}
+	user.Filters.Dir = dirs
+}
+
+// LoadMerged loads the user config (with the plugin layer underneath, see
+// LoadWithPlugin), then layers the project config on top. The resulting
+// precedence is plugin < user < project. When mode == "project", the project
+// config's filter settings override the user's. When mode == "user"
+// (default), user settings take priority.
+func LoadMerged() (*Config, error) {
+	user, err := LoadWithPlugin()
 	if err != nil {
 		// If user config file is missing, use defaults (normal for new installs).
 		// Other errors (permission, corrupt TOML) propagate to the caller so the
