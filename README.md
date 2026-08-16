@@ -344,7 +344,7 @@ snip gain --unfiltered      # opt-in report on unfiltered commands
 snip gain --no-truncate     # disable command truncation
 snip gain --json            # machine-readable output
 snip gain --csv             # CSV export
-snip cc-economics           # financial impact by API tier (haiku/sonnet/opus)
+snip cc-economics           # financial impact by pricing tier (configurable)
 snip discover               # find missed savings in Claude Code history
 snip discover --since 30    # scan last 30 days
 snip discover --all         # scan all projects
@@ -519,6 +519,10 @@ dir = "~/.config/snip/filters"
 
 [filters.bypass]
 # commands = ["dotnet publish"]  # always run these unfiltered
+
+[economics.tiers]        # pricing for `snip cc-economics`, $ per 1M input tokens
+# haiku = 1.00           # free-form names; defaults are current Anthropic list
+# negotiated_opus = 3.10 # prices (haiku 1, sonnet 3, opus 5, fable 10) until set
 
 [tee]
 enabled = true
