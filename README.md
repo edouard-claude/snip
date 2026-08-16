@@ -562,6 +562,23 @@ unset SNIP_CONFIG
 
 A repo can ship its own `.snip/config.toml`; snip walks up from the working directory and uses the first one it finds. The file must be trusted once (`snip trust .snip/config.toml`) and declare `mode = "project"` to override the user config. Project keys that participate in the merge: `filters.enable`, `filters.global`, `filters.override` (project wins), and `filters.bypass.commands` (concatenated, regardless of mode). Typical corporate setup: defaults for every developer live in the repo, personal tweaks stay in `~/.config/snip/config.toml`.
 
+### Plugin Configuration
+
+An agent plugin (for example a Claude Code plugin) can ship a snip config that applies on every machine as the **base** of the cascade `plugin < user < project`. The plugin's hook exports the path:
+
+```bash
+SNIP_PLUGIN_CONFIG=${CLAUDE_PLUGIN_ROOT}/snip/config.toml
+```
+
+The file is a regular snip TOML restricted to the filter sections (`filters.enable`, `filters.global`, `filters.override`, `filters.bypass`, `transparent_prefixes`, and `filters.dir` so the plugin can ship its own filter YAMLs; plugin filters load first, so user filters win by name). Like a project config, it must be trusted once:
+
+```bash
+snip trust "$SNIP_PLUGIN_CONFIG"               # the config itself
+snip trust "${SNIP_PLUGIN_CONFIG%/*}/filters"  # the plugin's filters
+```
+
+A plugin typically runs both commands from a session-start hook, so plugin updates re-trust automatically. Anything the user or the repo sets overrides the plugin layer. Full details on the [Configuration wiki page](https://github.com/edouard-claude/snip/wiki/Configuration).
+
 ```toml
 # .snip/config.toml — checked into the repo
 mode = "project"
