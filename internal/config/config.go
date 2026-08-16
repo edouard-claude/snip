@@ -15,11 +15,19 @@ import (
 var envVarRe = regexp.MustCompile(`\$\{env\.(\w+)\}`)
 
 type Config struct {
-	Mode     string         `toml:"mode"` // "user" (default) or "project"
-	Tracking TrackingConfig `toml:"tracking"`
-	Display  DisplayConfig  `toml:"display"`
-	Filters  FiltersConfig  `toml:"filters"`
-	Tee      TeeConfig      `toml:"tee"`
+	Mode      string          `toml:"mode"` // "user" (default) or "project"
+	Tracking  TrackingConfig  `toml:"tracking"`
+	Display   DisplayConfig   `toml:"display"`
+	Filters   FiltersConfig   `toml:"filters"`
+	Tee       TeeConfig       `toml:"tee"`
+	Economics EconomicsConfig `toml:"economics"`
+}
+
+// EconomicsConfig holds the pricing tiers used by cc-economics. Keys are
+// tier names, values are $ per 1M input tokens. Empty means the built-in
+// defaults (current Anthropic list prices) apply.
+type EconomicsConfig struct {
+	Tiers map[string]float64 `toml:"tiers"`
 }
 
 type TrackingConfig struct {
@@ -179,11 +187,12 @@ func tryUnmarshalArrayDir(data []byte, cfg *Config) bool {
 		Bypass              FilterBypassConfig        `toml:"bypass"`
 	}
 	type configArray struct {
-		Mode     string         `toml:"mode"`
-		Tracking TrackingConfig `toml:"tracking"`
-		Display  DisplayConfig  `toml:"display"`
-		Filters  filtersArray   `toml:"filters"`
-		Tee      TeeConfig      `toml:"tee"`
+		Mode      string          `toml:"mode"`
+		Tracking  TrackingConfig  `toml:"tracking"`
+		Display   DisplayConfig   `toml:"display"`
+		Filters   filtersArray    `toml:"filters"`
+		Tee       TeeConfig       `toml:"tee"`
+		Economics EconomicsConfig `toml:"economics"`
 	}
 
 	def := DefaultConfig()
@@ -209,7 +218,14 @@ func tryUnmarshalArrayDir(data []byte, cfg *Config) bool {
 	cfg.Filters.Override = alt.Filters.Override
 	cfg.Filters.Bypass = alt.Filters.Bypass
 	cfg.Tee = alt.Tee
+	cfg.Economics = alt.Economics
 	return true
+}
+
+// Path returns the user config file location: SNIP_CONFIG when set,
+// otherwise ~/.config/snip/config.toml.
+func Path() string {
+	return configPath()
 }
 
 // expandPaths expands ${env.VAR} references and leading "~/" in all path fields.

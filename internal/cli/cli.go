@@ -132,7 +132,7 @@ func Run(args []string) int {
 			return 1
 		}
 		defer func() { _ = tracker.Close() }()
-		if err := economics.Run(tracker, cmdArgs); err != nil {
+		if err := economics.Run(tracker, cfg.Economics, cmdArgs); err != nil {
 			display.PrintError(err.Error())
 			return 1
 		}

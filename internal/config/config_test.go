@@ -1674,3 +1674,58 @@ dir = "filters"
 		t.Errorf("Dirs: got %v, want first entry %q", dirs, want)
 	}
 }
+
+func TestLoadConfigEconomicsTiers(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	content := `
+[economics.tiers]
+haiku = 1.0
+opus = 4.20
+negotiated = 2.75
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("SNIP_CONFIG", path)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.Economics.Tiers) != 3 {
+		t.Fatalf("Tiers: got %v, want 3 entries", cfg.Economics.Tiers)
+	}
+	if cfg.Economics.Tiers["negotiated"] != 2.75 {
+		t.Errorf("Tiers[negotiated]: got %v, want 2.75", cfg.Economics.Tiers["negotiated"])
+	}
+}
+
+func TestLoadConfigEconomicsSurvivesArrayDir(t *testing.T) {
+	// The array-dir fallback structs must mirror every section (#158).
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	content := `
+[filters]
+dir = ["/tmp/a", "/tmp/b"]
+
+[economics.tiers]
+opus = 4.20
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("SNIP_CONFIG", path)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Economics.Tiers["opus"] != 4.20 {
+		t.Errorf("Tiers[opus] after array-dir fallback: got %v, want 4.20", cfg.Economics.Tiers["opus"])
+	}
+}

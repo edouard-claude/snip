@@ -136,6 +136,12 @@ func Run(args []string) error {
 		return fmt.Errorf("create filter dir: %w", err)
 	}
 
+	// Best-effort: seed a commented [economics.tiers] template so pricing
+	// is discoverable. Never blocks the install.
+	if err := ensureEconomicsSection(agent); err != nil {
+		fmt.Fprintf(os.Stderr, "snip: could not write economics template: %v\n", err)
+	}
+
 	switch agent {
 	case "claude-code":
 		return initClaudeCode(snipBin, filterDir)
