@@ -507,6 +507,42 @@ func TestStringOrArrayUnmarshal(t *testing.T) {
 	}
 }
 
+func TestCwdToProjectName(t *testing.T) {
+	tests := []struct {
+		name string
+		cwd  string
+		want string
+	}{
+		{
+			name: "unix path",
+			cwd:  "/Users/edouard/Code/go/snip",
+			want: "-Users-edouard-Code-go-snip",
+		},
+		{
+			name: "windows drive colon and dashes in project dir",
+			cwd:  `C:\dev\acme\agentic-acme-polishing`,
+			want: "C--dev-acme-agentic-acme-polishing",
+		},
+		{
+			name: "windows path with underscore and space",
+			cwd:  `C:\dev\_lab\my project`,
+			want: "C--dev--lab-my-project",
+		},
+		{
+			name: "windows home dir with whitespace and dot dir",
+			cwd:  `C:\Users\Jane Doe\.claude`,
+			want: "C--Users-Jane-Doe--claude",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := cwdToProjectName(tt.cwd); got != tt.want {
+				t.Errorf("cwdToProjectName(%q) = %q, want %q", tt.cwd, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestFindProjectDirsRespectsClaudeConfigDir(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	claudeDir := t.TempDir()
