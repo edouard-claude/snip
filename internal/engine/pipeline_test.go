@@ -227,7 +227,6 @@ func TestPipelineRunSilentWhenFilterExcludedByFlags(t *testing.T) {
 		Name:    "true-json",
 		Version: 1,
 		Match:   filter.Match{Command: "true", RequireFlags: []string{"--json"}},
-		OnError: "passthrough",
 		Pipeline: filter.Pipeline{
 			{ActionName: "keep_lines", Params: map[string]any{"pattern": `.`}},
 		},
@@ -272,7 +271,6 @@ func TestPipelineRunSilentWhenSiblingSubcommandHasFilter(t *testing.T) {
 		Name:    "true-foo",
 		Version: 1,
 		Match:   filter.Match{Command: "true", Subcommand: filter.NewSubcommand("foo")},
-		OnError: "passthrough",
 		Pipeline: filter.Pipeline{
 			{ActionName: "keep_lines", Params: map[string]any{"pattern": `.`}},
 		},
@@ -445,7 +443,6 @@ func filterForTest(name string, pipeline filter.Pipeline) filter.Filter {
 		Version:  1,
 		Match:    filter.Match{Command: name},
 		Pipeline: pipeline,
-		OnError:  "passthrough",
 	}
 }
 
@@ -599,7 +596,6 @@ func TestPipelineRunFallsBackWhenCommandNeverRan(t *testing.T) {
 		Name:    "missing-tool",
 		Version: 1,
 		Match:   filter.Match{Command: missing},
-		OnError: "passthrough",
 		Pipeline: filter.Pipeline{
 			{ActionName: "keep_lines", Params: map[string]any{"pattern": `.`}},
 		},
@@ -670,7 +666,6 @@ func shPassthroughFilter() filter.Filter {
 		Name:    "sh-passthrough",
 		Version: 1,
 		Match:   filter.Match{Command: "sh"},
-		OnError: "passthrough",
 		Pipeline: filter.Pipeline{
 			{ActionName: "keep_lines", Params: map[string]any{"pattern": `.`}},
 		},

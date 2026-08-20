@@ -39,10 +39,6 @@ func TestDeadFields_KnownCases(t *testing.T) {
 		t.Errorf("Version should NOT be flagged — used in tests and config")
 	}
 
-	// Known: OnError tag removed — yaml:"on_error" was parsed but hardcoded to passthrough
-	if foundFields["OnError"] {
-		t.Errorf("OnError should NOT be flagged — yaml tag removed, field is just a struct comment")
-	}
 }
 
 func TestTypeString(t *testing.T) {
