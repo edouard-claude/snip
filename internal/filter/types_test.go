@@ -197,7 +197,6 @@ func TestFilterCloneDeepCopy(t *testing.T) {
 		Name:    "test-clone",
 		Version: 2,
 		Match:   Match{Command: "git", Subcommand: NewSubcommand("log")},
-		OnError: "passthrough",
 		Pipeline: Pipeline{
 			{ActionName: "head", Params: map[string]any{"n": 10}},
 			{ActionName: "keep_lines", Params: map[string]any{"pattern": `\S`}},
@@ -292,8 +291,9 @@ func TestFilterClonePreservesNilParams(t *testing.T) {
 }
 
 func TestYAMLBackwardCompatUntaggedFields(t *testing.T) {
-	// Verify that removing yaml:"description" and yaml:"on_error" tags
-	// does not break YAML parsing — yaml.v3 silently ignores unknown keys.
+	// Bundled filters keep their descriptive `on_error:` lines and the
+	// Filter struct has no matching field: yaml.v3 must silently ignore
+	// unknown keys (same for `description`, whose field has no yaml tag).
 	input := `
 name: "backward-compat"
 version: 1

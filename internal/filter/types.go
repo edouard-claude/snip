@@ -16,7 +16,6 @@ type Filter struct {
 	Inject      *Inject      `yaml:"inject,omitempty"`
 	Streams     []string     `yaml:"streams,omitempty"`
 	Pipeline    Pipeline     `yaml:"pipeline"`
-	OnError     string       // parsed from YAML, hardcoded to passthrough in pipeline
 	Tests       []FilterTest `yaml:"tests,omitempty"`
 }
 

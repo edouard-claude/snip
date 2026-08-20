@@ -160,7 +160,6 @@ func makeFilter(name, cmd, subcmd string) Filter {
 		Name:    name,
 		Version: 1,
 		Match:   match,
-		OnError: "passthrough",
 	}
 }
 
@@ -211,7 +210,6 @@ func TestRegistryMatchMultiSubcommands(t *testing.T) {
 		Name:    "npm-install",
 		Version: 1,
 		Match:   Match{Command: "npm", Subcommand: NewSubcommands("install", "add", "i")},
-		OnError: "passthrough",
 	}})
 
 	for _, subcommand := range []string{"install", "add", "i"} {
@@ -234,7 +232,6 @@ func TestRegistryMatchExplicitBareSubcommand(t *testing.T) {
 		Name:    "yarn-install",
 		Version: 1,
 		Match:   Match{Command: "yarn", Subcommand: NewSubcommands("", "install", "add")},
-		OnError: "passthrough",
 	}})
 
 	if got := reg.Match("yarn", "", nil); got == nil || got.Name != "yarn-install" {
@@ -256,7 +253,6 @@ func TestRegistryOmittedSubcommandIsWildcard(t *testing.T) {
 		Name:    "legacy-npm",
 		Version: 1,
 		Match:   Match{Command: "npm"},
-		OnError: "passthrough",
 	}})
 
 	for _, subcommand := range []string{"", "install", "view"} {
@@ -271,7 +267,6 @@ func TestRegistryExactSubcommandExcludeFlags(t *testing.T) {
 		Name:    "npm-install",
 		Version: 1,
 		Match:   Match{Command: "npm", Subcommand: NewSubcommands("install", "i"), ExcludeFlags: []string{"--version", "-v"}},
-		OnError: "passthrough",
 	}})
 
 	if got := reg.Match("npm", "i", []string{"left-pad"}); got == nil || got.Name != "npm-install" {
@@ -290,7 +285,6 @@ func TestRegistryMatchExcludeFlags(t *testing.T) {
 		Name:    "git-log",
 		Version: 1,
 		Match:   Match{Command: "git", Subcommand: NewSubcommand("log"), ExcludeFlags: []string{"--format", "--pretty"}},
-		OnError: "passthrough",
 	}
 	reg := NewRegistry([]Filter{f})
 
@@ -313,7 +307,6 @@ func TestRegistryMatchRequireFlags(t *testing.T) {
 		Name:    "special",
 		Version: 1,
 		Match:   Match{Command: "cmd", RequireFlags: []string{"--json"}},
-		OnError: "passthrough",
 	}
 	reg := NewRegistry([]Filter{f})
 
@@ -361,7 +354,6 @@ func TestHasAnyFilter(t *testing.T) {
 		Name:    "go-test",
 		Version: 1,
 		Match:   Match{Command: "go", Subcommand: NewSubcommand("test"), ExcludeFlags: []string{"-v"}},
-		OnError: "passthrough",
 	}
 	reg := NewRegistry([]Filter{f})
 
@@ -390,7 +382,6 @@ func TestHasAnyFilterCommandOnly(t *testing.T) {
 		Name:    "npm-filter",
 		Version: 1,
 		Match:   Match{Command: "npm"},
-		OnError: "passthrough",
 	}
 	reg := NewRegistry([]Filter{f})
 
@@ -414,8 +405,8 @@ func TestHasAnyFilterForCommand(t *testing.T) {
 	// so that running "git checkout" doesn't print the misleading
 	// "no filter for git" hint.
 	filters := []Filter{
-		{Name: "git-add", Version: 1, Match: Match{Command: "git", Subcommand: NewSubcommand("add")}, OnError: "passthrough"},
-		{Name: "git-commit", Version: 1, Match: Match{Command: "git", Subcommand: NewSubcommand("commit")}, OnError: "passthrough"},
+		{Name: "git-add", Version: 1, Match: Match{Command: "git", Subcommand: NewSubcommand("add")}},
+		{Name: "git-commit", Version: 1, Match: Match{Command: "git", Subcommand: NewSubcommand("commit")}},
 	}
 	reg := NewRegistry(filters)
 
@@ -428,7 +419,7 @@ func TestHasAnyFilterForCommand(t *testing.T) {
 
 	// Command-only filter must also be recognized.
 	regCmdOnly := NewRegistry([]Filter{
-		{Name: "npm", Version: 1, Match: Match{Command: "npm"}, OnError: "passthrough"},
+		{Name: "npm", Version: 1, Match: Match{Command: "npm"}},
 	})
 	if !regCmdOnly.HasAnyFilterForCommand("npm") {
 		t.Error("HasAnyFilterForCommand should return true for npm (command-only filter)")
@@ -439,7 +430,7 @@ func TestRegistryDotSlashWrapper(t *testing.T) {
 	// Wrapper scripts invoked from the project root (./gradlew, ./mvnw) must
 	// match filters keyed on the bare name.
 	filters := []Filter{
-		{Name: "gradlew", Version: 1, Match: Match{Command: "gradlew"}, OnError: "passthrough"},
+		{Name: "gradlew", Version: 1, Match: Match{Command: "gradlew"}},
 	}
 	reg := NewRegistry(filters)
 
