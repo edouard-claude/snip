@@ -380,21 +380,103 @@ func extractCommandEntries(path string, cutoff time.Time) []commandEntry {
 	return entries
 }
 
-// extractBaseCommand parses a shell command string to extract the base command name.
+// navigationPrefixes are commands that only move around or set up the shell.
+// They carry no failure of their own, so attributing an error to them hides
+// the command that actually ran (e.g. "cd /path && npx ..." is about npx).
+var navigationPrefixes = map[string]bool{
+	"cd":     true,
+	"pushd":  true,
+	"popd":   true,
+	"export": true,
+	"source": true,
+	".":      true,
+}
+
+// extractBaseCommand parses a shell command string to extract the base command
+// name. It walks past leading segments that carry no command, so a chained
+// command reports the tool that really ran rather than its shell scaffolding.
+// The walk crosses newlines only while no command has been seen yet, which
+// keeps heredoc bodies out: they always follow the command that opens them.
 func extractBaseCommand(cmd string) string {
-	firstLine := cmd
-	if idx := strings.IndexByte(firstLine, '\n'); idx >= 0 {
-		firstLine = firstLine[:idx]
+	var first string
+	rest := cmd
+	for {
+		segment := hook.ExtractFirstSegment(rest)
+		base := segmentBase(segment)
+		if isCommandName(base) {
+			if first == "" {
+				first = base
+			}
+			if !navigationPrefixes[base] {
+				return base
+			}
+		}
+		if len(segment) >= len(rest) {
+			break
+		}
+		rest = strings.TrimLeft(rest[len(segment):], ";|&\n \t")
+		if rest == "" {
+			break
+		}
 	}
-	firstSegment := hook.ExtractFirstSegment(firstLine)
-	_, _, bareCmd := hook.ParseSegment(firstSegment)
+
+	// Every segment was scaffolding: keep the first one rather than nothing.
+	return first
+}
+
+// segmentBase reduces a single command segment to its executable name, or to
+// the empty string when the segment holds no command at all.
+func segmentBase(segment string) string {
+	_, _, bareCmd := hook.ParseSegment(segment)
 	base := hook.BaseCommand(bareCmd)
+	if looksLikeAssignment(base) {
+		return ""
+	}
 
 	if idx := strings.LastIndexByte(base, '/'); idx >= 0 {
 		base = base[idx+1:]
 	}
-	base = strings.Trim(base, "'\"")
-	return base
+	return strings.Trim(base, "'\"")
+}
+
+// isCommandName reports whether a word can be an executable name. Walking past
+// scaffolding can land in the middle of a command substitution or a redirection
+// (e.g. "$(cat /tmp/jwt.txt)"), and such fragments must not be reported as
+// commands.
+func isCommandName(word string) bool {
+	if word == "" {
+		return false
+	}
+	for i := 0; i < len(word); i++ {
+		c := word[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case c == '.', c == '_', c == '-', c == '+':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// looksLikeAssignment reports whether a word is a KEY=VALUE assignment rather
+// than a command. ParseSegment only strips assignments followed by a command,
+// so a segment made of assignments alone reaches here intact.
+func looksLikeAssignment(word string) bool {
+	eq := strings.IndexByte(word, '=')
+	if eq <= 0 {
+		return false
+	}
+	for i := 0; i < eq; i++ {
+		c := word[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c == '_':
+		case c >= '0' && c <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // looksLikeError checks if command output contains common error indicators.
@@ -416,7 +498,7 @@ func detectPatterns(entries []commandEntry) []ErrorPattern {
 	var patterns []ErrorPattern
 
 	for i, entry := range entries {
-		if !entry.IsError {
+		if !entry.IsError || entry.BaseCmd == "" {
 			continue
 		}
 

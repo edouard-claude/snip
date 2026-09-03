@@ -457,6 +457,20 @@ func TestExtractBaseCommand(t *testing.T) {
 		{"CGO_ENABLED=0 go build", "go"},
 		{"/usr/bin/git status", "git"},
 		{"npm install", "npm"},
+		// Navigation prefixes and standalone assignments hide the real command.
+		{"cd /Users/e/app && npx react-native run-ios", "npx"},
+		{"cd ~/Code/app && sed -i '' 's|a|b|' f.yaml", "sed"},
+		{"SCRATCH=/tmp/x/scratchpad && python3 -c 'print(1)'", "python3"},
+		{"SP=/tmp/y/scratchpad; git diff --stat", "git"},
+		{"cd /tmp && gh pr view 18 --repo o/r", "gh"},
+		{"pushd /tmp && make build", "make"},
+		{"git log | grep x", "git"},
+		{"cd /tmp", "cd"},
+		{"SP=/tmp/x/scratchpad\npython3 - <<'PY'\nimport io\nPY", "python3"},
+		{"go test ./... 2>&1 | tail -3", "go"},
+		{"TOKEN=$(cat /tmp/jwt.txt) && curl -s http://x", "curl"},
+		{"SP=/tmp/x; TOKEN=$(cat $SP/jwt.txt)", ""},
+		{"", ""},
 	}
 
 	for _, tt := range tests {
