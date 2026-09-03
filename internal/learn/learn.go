@@ -31,7 +31,7 @@ type contentItem struct {
 	ID        string          `json:"id,omitempty"`
 	Input     json.RawMessage `json:"input,omitempty"`
 	Content   stringOrArray   `json:"content,omitempty"`
-	IsError   bool            `json:"is_error,omitempty"`
+	IsError   *bool           `json:"is_error,omitempty"`
 	ToolUseID string          `json:"tool_use_id,omitempty"`
 }
 
@@ -70,6 +70,14 @@ type bashInput struct {
 	Command string `json:"command"`
 }
 
+// notRunMarkers identify tool results for commands that never executed: the
+// user rejected the call or interrupted the turn. They are flagged is_error,
+// but nothing failed, so such an entry is neither a failure nor a fix.
+var notRunMarkers = []string{
+	"The user doesn't want to proceed with this tool use",
+	"[Request interrupted by user",
+}
+
 // commandEntry represents a Bash command extracted from a session with its result.
 type commandEntry struct {
 	Command   string // full command string
@@ -78,6 +86,7 @@ type commandEntry struct {
 	Output    string // tool result content (if found)
 	IsError   bool   // whether the tool result indicated an error
 	HasResult bool   // whether a result was matched
+	NotRun    bool   // whether the command was rejected or interrupted
 	Timestamp string // timestamp from the JSONL entry
 }
 
@@ -372,12 +381,45 @@ func extractCommandEntries(path string, cutoff time.Time) []commandEntry {
 				}
 				entries[idx].HasResult = true
 				entries[idx].Output = item.Content.Value
-				entries[idx].IsError = item.IsError || looksLikeError(item.Content.Value)
+				entries[idx].IsError = resultIsError(item)
+				entries[idx].NotRun = isNotRun(item.Content.Value)
 			}
 		}
 	}
 
-	return entries
+	return dropNotRun(entries)
+}
+
+// resultIsError reports whether a tool result describes a failed command. The
+// explicit is_error flag is authoritative when present; the output heuristic is
+// only a fallback, because it cannot tell a failure from a command that merely
+// prints an error message (a grep hit, a file listing).
+func resultIsError(item contentItem) bool {
+	if item.IsError != nil {
+		return *item.IsError
+	}
+	return looksLikeError(item.Content.Value)
+}
+
+// isNotRun reports whether a tool result means the command never executed.
+func isNotRun(output string) bool {
+	for _, marker := range notRunMarkers {
+		if strings.Contains(output, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// dropNotRun removes the commands that never executed, keeping session order.
+func dropNotRun(entries []commandEntry) []commandEntry {
+	kept := entries[:0]
+	for _, e := range entries {
+		if !e.NotRun {
+			kept = append(kept, e)
+		}
+	}
+	return kept
 }
 
 // extractBaseCommand parses a shell command string to extract the base command name.
