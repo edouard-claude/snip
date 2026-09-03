@@ -591,3 +591,65 @@ func writeLines(t *testing.T, path string, lines []string) {
 		t.Fatal(err)
 	}
 }
+
+func TestExtractCommandEntriesTrustsExplicitFlag(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "session.jsonl")
+
+	// The output quotes an error marker, but the tool reported success.
+	writeLines(t, path, []string{
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"grep -n \"undefined:\" main.go"}}]},"timestamp":"2026-04-01T10:00:00.000Z"}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"12: // undefined: reflect","is_error":false}]},"timestamp":"2026-04-01T10:00:05.000Z"}`,
+	})
+
+	entries := extractCommandEntries(path, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if entries[0].IsError {
+		t.Error("entries[0].IsError = true, want false: an explicit is_error:false must win over the output heuristic")
+	}
+}
+
+func TestExtractCommandEntriesFallsBackWithoutFlag(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "session.jsonl")
+
+	// No is_error field at all: the output heuristic is the only signal left.
+	writeLines(t, path, []string{
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"foo --bar"}}]},"timestamp":"2026-04-01T10:00:00.000Z"}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"foo: command not found"}]},"timestamp":"2026-04-01T10:00:05.000Z"}`,
+	})
+
+	entries := extractCommandEntries(path, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if !entries[0].IsError {
+		t.Error("entries[0].IsError = false, want true")
+	}
+}
+
+func TestExtractCommandEntriesDropsRejections(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "session.jsonl")
+
+	// A rejected command never ran: it is neither a failure nor a fix.
+	writeLines(t, path, []string{
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"go test ./..."}}]},"timestamp":"2026-04-01T10:00:00.000Z"}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"The user doesn't want to proceed with this tool use. The tool use was rejected (e.g. if it was a file edit).","is_error":true}]},"timestamp":"2026-04-01T10:00:05.000Z"}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_2","name":"Bash","input":{"command":"go build ./..."}}]},"timestamp":"2026-04-01T10:00:10.000Z"}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_2","content":"ok"}]},"timestamp":"2026-04-01T10:00:15.000Z"}`,
+	})
+
+	entries := extractCommandEntries(path, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	if len(entries) != 1 {
+		t.Fatalf("expected the rejected command to be dropped, got %d entries", len(entries))
+	}
+	if entries[0].Command != "go build ./..." {
+		t.Errorf("entries[0].Command = %q, want %q", entries[0].Command, "go build ./...")
+	}
+	if patterns := detectPatterns(entries); len(patterns) != 0 {
+		t.Errorf("expected no pattern from a rejection, got %d", len(patterns))
+	}
+}
