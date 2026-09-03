@@ -349,6 +349,9 @@ snip discover               # find missed savings in Claude Code history
 snip discover --since 30    # scan last 30 days
 snip discover --all         # scan all projects
 snip learn                  # detect CLI error-correction patterns in sessions
+snip learn --since 7        # scan last 7 days (default 30)
+snip learn --all            # scan all projects
+snip learn --generate       # write .claude/rules/cli-corrections.md
 snip verify                 # run the filters' inline tests
 snip config                 # show config
 snip trust [path]           # trust project-local filter file(s) by SHA-256
@@ -691,6 +694,7 @@ Full documentation is available on the **[Wiki](https://github.com/edouard-claud
 - [Installation](https://github.com/edouard-claude/snip/wiki/Installation) — Homebrew, Go, binaries (macOS/Linux/Windows), from source
 - [Integration](https://github.com/edouard-claude/snip/wiki/Integration) — Claude Code, Cursor, Copilot, Gemini, Kilo Code, Antigravity, and more
 - [Gain Dashboard](https://github.com/edouard-claude/snip/wiki/Gain-Dashboard) — Token savings reports and analytics
+- [Learn](https://github.com/edouard-claude/snip/wiki/Learn) — Detect CLI error-correction patterns, generate agent rules
 - [Filters](https://github.com/edouard-claude/snip/wiki/Filters) — Built-in filters, custom filters
 - [Filter DSL Reference](https://github.com/edouard-claude/snip/wiki/Filter-DSL-Reference) — All 20 pipeline actions
 - [Configuration](https://github.com/edouard-claude/snip/wiki/Configuration) — TOML config, environment variables
