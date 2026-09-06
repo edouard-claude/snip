@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // TestTrackUnwritableDBIsUnavailable verifies that when the tracking DB path is
@@ -266,5 +267,50 @@ func TestDBPath(t *testing.T) {
 	t.Setenv("SNIP_DB_PATH", "")
 	if got := DBPath("/config/path.db"); got != "/config/path.db" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestDBPathDefault(t *testing.T) {
+	t.Setenv("SNIP_DB_PATH", "")
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	path := DBPath("")
+	expected := filepath.Join(tmpDir, ".local", "share", "snip", "tracking.db")
+	if path != expected {
+		t.Errorf("DBPath() = %q, want %q", path, expected)
+	}
+}
+
+func TestWarmUp(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "warmup.db")
+	tr := NewLazyTracker(dbPath)
+	tr.WarmUp()
+
+	// WarmUp runs in background; track should work after warm-up.
+	// Give it a moment.
+	time.Sleep(50 * time.Millisecond)
+	err := tr.Track("test", "snip test", 100, 50, 10)
+	if err != nil {
+		t.Fatalf("track after warmup: %v", err)
+	}
+	_ = tr.Close()
+}
+
+func TestCloseNilDB(t *testing.T) {
+	tr := &Tracker{}
+	if err := tr.Close(); err != nil {
+		t.Fatalf("Close on nil db: %v", err)
+	}
+}
+
+func TestGetUnfilteredDefaultLimit(t *testing.T) {
+	tr := newTestTracker(t)
+	stats, err := tr.GetUnfiltered(0)
+	if err != nil {
+		t.Fatalf("get unfiltered default: %v", err)
+	}
+	if len(stats) != 0 {
+		t.Errorf("expected no rows, got %d", len(stats))
 	}
 }

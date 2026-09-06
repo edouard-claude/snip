@@ -248,6 +248,240 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
+func TestEnabled(t *testing.T) {
+	t.Setenv("SNIP_HOOK_AUDIT", "1")
+	if !Enabled() {
+		t.Error("Expected Enabled() to be true when SNIP_HOOK_AUDIT=1")
+	}
+
+	t.Setenv("SNIP_HOOK_AUDIT", "")
+	if Enabled() {
+		t.Error("Expected Enabled() to be false when SNIP_HOOK_AUDIT is empty")
+	}
+
+	t.Setenv("SNIP_HOOK_AUDIT", "0")
+	if Enabled() {
+		t.Error("Expected Enabled() to be false when SNIP_HOOK_AUDIT=0")
+	}
+
+	t.Setenv("SNIP_HOOK_AUDIT", "true")
+	if Enabled() {
+		t.Error("Expected Enabled() to be false when SNIP_HOOK_AUDIT=true (not '1')")
+	}
+}
+
+func TestLogDirAndLogPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	dir := LogDir()
+	expectedDir := filepath.Join(tmpDir, ".local", "share", "snip")
+	if dir != expectedDir {
+		t.Errorf("LogDir() = %q, want %q", dir, expectedDir)
+	}
+
+	path := LogPath()
+	expectedPath := filepath.Join(expectedDir, "hook-audit.log")
+	if path != expectedPath {
+		t.Errorf("LogPath() = %q, want %q", path, expectedPath)
+	}
+}
+
+func TestAppendAndReadEvents(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	ts := time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC)
+	e := Event{
+		Timestamp: ts,
+		Command:   "git status",
+		Base:      "git",
+		Matched:   true,
+		Rewritten: true,
+		Agent:     "claude-code",
+	}
+	Append(e)
+
+	events, err := ReadEvents()
+	if err != nil {
+		t.Fatalf("ReadEvents: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("got %d events, want 1", len(events))
+	}
+	if events[0].Command != "git status" {
+		t.Errorf("command = %q, want %q", events[0].Command, "git status")
+	}
+	if events[0].Base != "git" {
+		t.Errorf("base = %q, want %q", events[0].Base, "git")
+	}
+	if !events[0].Matched {
+		t.Error("expected Matched=true")
+	}
+	if !events[0].Rewritten {
+		t.Error("expected Rewritten=true")
+	}
+	if events[0].Agent != "claude-code" {
+		t.Errorf("agent = %q, want %q", events[0].Agent, "claude-code")
+	}
+}
+
+func TestAppendRotation(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	ts := time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC)
+	// Append MaxLines+50 events, rotation should keep last MaxLines
+	for i := 0; i < MaxLines+50; i++ {
+		Append(Event{
+			Timestamp: ts.Add(time.Duration(i) * time.Second),
+			Command:   fmt.Sprintf("cmd-%d", i),
+			Base:      "cmd",
+			Matched:   true,
+			Rewritten: true,
+		})
+	}
+
+	events, err := ReadEvents()
+	if err != nil {
+		t.Fatalf("ReadEvents: %v", err)
+	}
+	if len(events) != MaxLines {
+		t.Errorf("got %d events after rotation, want %d", len(events), MaxLines)
+	}
+}
+
+func TestClearFunc(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	// Append one event first.
+	Append(Event{
+		Timestamp: time.Now(),
+		Command:   "test",
+		Base:      "test",
+	})
+
+	// Verify it's there.
+	events, err := ReadEvents()
+	if err != nil {
+		t.Fatalf("ReadEvents: %v", err)
+	}
+	if len(events) == 0 {
+		t.Fatal("expected at least 1 event before clear")
+	}
+
+	// Clear.
+	if err := Clear(); err != nil {
+		t.Fatalf("Clear: %v", err)
+	}
+
+	// Verify cleared — should get nil events.
+	events, err = ReadEvents()
+	if err != nil {
+		t.Fatalf("ReadEvents after clear: %v", err)
+	}
+	if len(events) != 0 {
+		t.Errorf("got %d events after clear, want 0", len(events))
+	}
+}
+
+func TestReadEventsNonexistent(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	events, err := ReadEvents()
+	if err != nil {
+		t.Fatalf("ReadEvents on nonexistent file should not error: %v", err)
+	}
+	if events != nil {
+		t.Errorf("got %d events, want nil", len(events))
+	}
+}
+
+func TestRun(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	// Append some events first.
+	ts := time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC)
+	for i := 0; i < 5; i++ {
+		Append(Event{
+			Timestamp: ts.Add(time.Duration(i) * time.Minute),
+			Command:   fmt.Sprintf("cmd-%d", i),
+			Base:      "cmd",
+			Matched:   true,
+			Rewritten: true,
+		})
+	}
+
+	// Run with --tail 3.
+	err := Run([]string{"--tail", "3"})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	// Run with --clear.
+	err = Run([]string{"--clear"})
+	if err != nil {
+		t.Fatalf("Run --clear: %v", err)
+	}
+
+	// Verify cleared.
+	events, err := ReadEvents()
+	if err != nil {
+		t.Fatalf("ReadEvents after clear: %v", err)
+	}
+	if len(events) != 0 {
+		t.Errorf("expected 0 events after clear, got %d", len(events))
+	}
+}
+
+func TestRunWithTailEquals(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	err := Run([]string{"--tail=10"})
+	if err != nil {
+		t.Fatalf("Run --tail=10: %v", err)
+	}
+}
+
+func TestRunErrors(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	// --tail without value.
+	err := Run([]string{"--tail"})
+	if err == nil {
+		t.Fatal("expected error for --tail without value")
+	}
+
+	// --tail with non-integer.
+	err = Run([]string{"--tail", "abc"})
+	if err == nil {
+		t.Fatal("expected error for --tail abc")
+	}
+
+	// --tail with negative.
+	err = Run([]string{"--tail", "-1"})
+	if err == nil {
+		t.Fatal("expected error for --tail -1")
+	}
+
+	// --tail=N with non-integer.
+	err = Run([]string{"--tail=abc"})
+	if err == nil {
+		t.Fatal("expected error for --tail=abc")
+	}
+
+	// Unknown flag.
+	err = Run([]string{"--unknown"})
+	if err == nil {
+		t.Fatal("expected error for unknown flag")
+	}
+}
+
 func TestBoolYesNo(t *testing.T) {
 	if boolYesNo(true) != "yes" {
 		t.Error("boolYesNo(true) != yes")

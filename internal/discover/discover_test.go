@@ -471,3 +471,49 @@ func writeLines(t *testing.T, path string, lines []string) {
 		t.Fatal(err)
 	}
 }
+
+func TestRunWithSessionData(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	// Create a Claude Code project dir with session files.
+	cwd, _ := os.Getwd()
+	projectDir := filepath.Join(tmpHome, ".claude", "projects", cwdToProjectName(cwd))
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create session file with Bash commands.
+	sessionFile := filepath.Join(projectDir, "session.jsonl")
+	writeLines(t, sessionFile, []string{
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"git status"}}]},"timestamp":"2026-04-01T10:00:00.000Z"}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"go test ./..."}}]},"timestamp":"2026-04-01T10:01:00.000Z"}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"cat file.txt"}}]},"timestamp":"2026-04-01T10:02:00.000Z"}`,
+	})
+
+	err := Run(nil)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+}
+
+func TestRunWithSince(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	cwd, _ := os.Getwd()
+	projectDir := filepath.Join(tmpHome, ".claude", "projects", cwdToProjectName(cwd))
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	sessionFile := filepath.Join(projectDir, "session.jsonl")
+	writeLines(t, sessionFile, []string{
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"git status"}}]},"timestamp":"2026-04-01T10:00:00.000Z"}`,
+	})
+
+	err := Run([]string{"--since", "30"})
+	if err != nil {
+		t.Fatalf("Run --since: %v", err)
+	}
+}

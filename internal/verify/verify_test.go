@@ -1,6 +1,10 @@
 package verify
 
 import (
+	"bytes"
+	"io"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/edouard-claude/snip/internal/filter"
@@ -224,5 +228,149 @@ func TestRunTestsPipelineError(t *testing.T) {
 	}
 	if summary.Results[0].Got == "" {
 		t.Error("expected Got to contain error message")
+	}
+}
+
+func TestPrintReportAllPassed(t *testing.T) {
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+
+	summary := Summary{
+		TotalFilters:  2,
+		TestedFilters: 2,
+		TotalTests:    3,
+		Passed:        3,
+		Failed:        0,
+		Results: []TestResult{
+			{FilterName: "filter-a", TestName: "test1", Passed: true},
+			{FilterName: "filter-a", TestName: "test2", Passed: true},
+			{FilterName: "filter-b", TestName: "test1", Passed: true},
+		},
+	}
+
+	PrintReport(summary)
+
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	os.Stdout = old
+
+	output := buf.String()
+	if !strings.Contains(output, "filter-a") {
+		t.Error("expected output to contain filter-a")
+	}
+	if !strings.Contains(output, "filter-b") {
+		t.Error("expected output to contain filter-b")
+	}
+	if !strings.Contains(output, "2/2 passed") {
+		t.Error("expected '2/2 passed' in output")
+	}
+	if !strings.Contains(output, "3 passed") {
+		t.Error("expected '3 passed' in summary line")
+	}
+}
+
+func TestPrintReportWithFailures(t *testing.T) {
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+
+	summary := Summary{
+		TotalFilters:   2,
+		TestedFilters:  1,
+		TotalTests:     2,
+		Passed:         1,
+		Failed:         1,
+		UntestdFilters: []string{"untested-filter"},
+		Results: []TestResult{
+			{FilterName: "my-filter", TestName: "good-test", Passed: true},
+			{FilterName: "my-filter", TestName: "bad-test", Passed: false, Expected: "expected-out", Got: "actual-out"},
+		},
+	}
+
+	PrintReport(summary)
+
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	os.Stdout = old
+
+	output := buf.String()
+	if !strings.Contains(output, "FAIL") {
+		t.Error("expected FAIL in output")
+	}
+	if !strings.Contains(output, "1/2 passed") {
+		t.Error("expected 1/2 passed in output")
+	}
+	if !strings.Contains(output, "expected-out") {
+		t.Error("expected 'expected-out' in failure details")
+	}
+	if !strings.Contains(output, "actual-out") {
+		t.Error("expected 'actual-out' in failure details")
+	}
+}
+
+func TestPrintReportEmpty(t *testing.T) {
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+
+	summary := Summary{}
+	PrintReport(summary)
+
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	os.Stdout = old
+
+	output := buf.String()
+	if !strings.Contains(output, "0 filters") {
+		t.Error("expected '0 filters' in output")
+	}
+}
+
+func TestRunNoArgs(t *testing.T) {
+	// Set HOME to a temp dir so config.Load() doesn't find any user config.
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	// Capture stdout.
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	exitCode := Run(nil)
+
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	os.Stdout = old
+
+	if exitCode != 0 {
+		t.Errorf("expected exit 0 for default run, got %d", exitCode)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "snip verify") {
+		t.Error("expected output to contain 'snip verify'")
+	}
+}
+
+func TestRunRequireAll(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	exitCode := Run([]string{"--require-all"})
+	if exitCode != 0 {
+		t.Errorf("expected exit 0 for --require-all when loading succeeds, got %d", exitCode)
 	}
 }

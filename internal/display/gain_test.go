@@ -321,3 +321,72 @@ func TestFormatQuotaCost(t *testing.T) {
 		}
 	}
 }
+
+func TestRunGainUnfilteredEmpty(t *testing.T) {
+	tracker := newTestTracker(t)
+	seedTracker(t, tracker)
+
+	// Capture stdout
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+
+	runErr := RunGain(tracker, []string{"--unfiltered"})
+
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	os.Stdout = old
+
+	if runErr != nil {
+		t.Fatalf("unexpected error: %v", runErr)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Unfiltered commands") {
+		t.Error("expected 'Unfiltered commands' header")
+	}
+	// No unfiltered commands recorded, so should show the hint.
+	if !strings.Contains(output, "none recorded") {
+		t.Error("expected 'none recorded' hint when no unfiltered data")
+	}
+}
+
+func TestRunGainUnfilteredWithData(t *testing.T) {
+	tracker := newTestTracker(t)
+
+	// Record some unfiltered commands.
+	_ = tracker.TrackUnfiltered("cargo", "cargo build")
+	_ = tracker.TrackUnfiltered("cargo", "cargo build --release")
+	_ = tracker.TrackUnfiltered("make", "make all")
+
+	// Capture stdout
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+
+	runErr := RunGain(tracker, []string{"--unfiltered", "10"})
+
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	os.Stdout = old
+
+	if runErr != nil {
+		t.Fatalf("unexpected error: %v", runErr)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "cargo") {
+		t.Error("expected 'cargo' in unfiltered output")
+	}
+	if !strings.Contains(output, "make") {
+		t.Error("expected 'make' in unfiltered output")
+	}
+}

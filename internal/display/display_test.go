@@ -1,6 +1,9 @@
 package display
 
 import (
+	"bytes"
+	"io"
+	"os"
 	"strings"
 	"testing"
 )
@@ -118,4 +121,59 @@ func TestColorSavingsNonTTY(t *testing.T) {
 	if !strings.Contains(result, "85.3%") {
 		t.Errorf("expected 85.3%%, got %q", result)
 	}
+}
+
+func TestPrintFiltered(t *testing.T) {
+	// Capture both stdout and stderr.
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
+
+	rOut, wOut, _ := os.Pipe()
+	rErr, wErr, _ := os.Pipe()
+	os.Stdout = wOut
+	os.Stderr = wErr
+
+	PrintFiltered("hello world\n", 0)
+
+	_ = wOut.Close()
+	_ = wErr.Close()
+	var outBuf, errBuf bytes.Buffer
+	_, _ = io.Copy(&outBuf, rOut)
+	_, _ = io.Copy(&errBuf, rErr)
+	os.Stdout = oldStdout
+	os.Stderr = oldStderr
+
+	if outBuf.String() != "hello world\n" {
+		t.Errorf("stdout = %q, want %q", outBuf.String(), "hello world\n")
+	}
+	// verbose=0 should not print anything to stderr
+	if errBuf.Len() > 0 {
+		t.Errorf("expected empty stderr with verbose=0, got %q", errBuf.String())
+	}
+}
+
+func TestPrintFilteredVerbose(t *testing.T) {
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
+
+	rOut, wOut, _ := os.Pipe()
+	rErr, wErr, _ := os.Pipe()
+	os.Stdout = wOut
+	os.Stderr = wErr
+
+	PrintFiltered("hello world\n", 1)
+
+	_ = wOut.Close()
+	_ = wErr.Close()
+	var outBuf, errBuf bytes.Buffer
+	_, _ = io.Copy(&outBuf, rOut)
+	_, _ = io.Copy(&errBuf, rErr)
+	os.Stdout = oldStdout
+	os.Stderr = oldStderr
+
+	if outBuf.String() != "hello world\n" {
+		t.Errorf("stdout = %q, want %q", outBuf.String(), "hello world\n")
+	}
+	// When stdout is not a terminal (pipe), verbose header is suppressed.
+	// Still, the message goes to stdout correctly.
 }

@@ -696,3 +696,17 @@ func readSettings(t *testing.T, path string) map[string]any {
 	}
 	return settings
 }
+
+func TestResolveSnipBin(t *testing.T) {
+	bin, err := resolveSnipBin()
+	if err != nil {
+		t.Fatalf("resolveSnipBin: %v", err)
+	}
+	if bin == "" {
+		t.Error("expected non-empty path")
+	}
+	// Should be an absolute path.
+	if !filepath.IsAbs(bin) {
+		t.Errorf("expected absolute path, got %q", bin)
+	}
+}

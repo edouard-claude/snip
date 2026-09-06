@@ -665,3 +665,51 @@ func TestGetAction(t *testing.T) {
 		t.Error("expected nonexistent action to not be found")
 	}
 }
+
+func TestJsonSchema(t *testing.T) {
+	input := lines(`{"name": "test", "version": 1, "nested": {"key": "value"}}`)
+	result, err := jsonSchema(input, map[string]any{"max_depth": 2})
+	if err != nil {
+		t.Fatalf("jsonSchema: %v", err)
+	}
+	output := strings.Join(result.Lines, "\n")
+	if !strings.Contains(output, "name") {
+		t.Error("expected schema to contain 'name'")
+	}
+	if !strings.Contains(output, "version") {
+		t.Error("expected schema to contain 'version'")
+	}
+	if !strings.Contains(output, "nested") {
+		t.Error("expected schema to contain 'nested'")
+	}
+}
+
+func TestJsonSchemaBadJSON(t *testing.T) {
+	input := lines("not json")
+	_, err := jsonSchema(input, nil)
+	if err == nil {
+		t.Fatal("expected error for bad JSON")
+	}
+}
+
+func TestToStringSlice(t *testing.T) {
+	// []string
+	if result, ok := toStringSlice([]string{"a", "b"}); !ok || len(result) != 2 {
+		t.Errorf("toStringSlice([]string) = %v, %v", result, ok)
+	}
+
+	// []any with strings
+	if result, ok := toStringSlice([]any{"a", "b"}); !ok || len(result) != 2 {
+		t.Errorf("toStringSlice([]any{strings}) = %v, %v", result, ok)
+	}
+
+	// []any with non-string
+	if _, ok := toStringSlice([]any{"a", 42}); ok {
+		t.Error("toStringSlice([]any{mixed}) should return false")
+	}
+
+	// non-slice
+	if _, ok := toStringSlice(42); ok {
+		t.Error("toStringSlice(int) should return false")
+	}
+}

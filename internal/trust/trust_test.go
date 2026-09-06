@@ -269,3 +269,61 @@ func TestTrustMultipleFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestTrustStorePath(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	path := TrustStorePath()
+	expected := filepath.Join(tmpDir, ".config", "snip", "trusted.json")
+	if path != expected {
+		t.Errorf("TrustStorePath() = %q, want %q", path, expected)
+	}
+}
+
+func TestLoadAndSave(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	// Create necessary directories.
+	configDir := filepath.Join(tmpDir, ".config", "snip")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	store := Store{
+		"/a/filter.yaml": "abc123",
+		"/b/filter.yaml": "def456",
+	}
+
+	if err := Save(store); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if loaded["/a/filter.yaml"] != "abc123" {
+		t.Errorf("loaded hash = %s, want abc123", loaded["/a/filter.yaml"])
+	}
+	if loaded["/b/filter.yaml"] != "def456" {
+		t.Errorf("loaded hash = %s, want def456", loaded["/b/filter.yaml"])
+	}
+	if len(loaded) != 2 {
+		t.Errorf("expected 2 entries, got %d", len(loaded))
+	}
+}
+
+func TestLoadNonexistent(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	store, err := Load()
+	if err != nil {
+		t.Fatalf("Load nonexistent: %v", err)
+	}
+	if len(store) != 0 {
+		t.Errorf("expected empty store, got %d entries", len(store))
+	}
+}

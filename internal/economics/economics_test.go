@@ -232,3 +232,23 @@ func TestRunUnknownTier(t *testing.T) {
 		t.Errorf("expected 'unknown tier' error, got: %v", err)
 	}
 }
+
+func TestActiveTiersCustom(t *testing.T) {
+	cfg := config.EconomicsConfig{
+		Tiers: map[string]float64{
+			"ClaudeX": 8.00,
+			"ClaudeY": 2.00,
+		},
+	}
+	tiers := ActiveTiers(cfg)
+	if len(tiers) != 2 {
+		t.Fatalf("expected 2 tiers, got %d", len(tiers))
+	}
+	// Should be sorted by price ascending
+	if tiers[0].PriceM != 2.00 || tiers[0].Name != "ClaudeY" {
+		t.Errorf("first tier = %v, want {ClaudeY 2.00}", tiers[0])
+	}
+	if tiers[1].PriceM != 8.00 || tiers[1].Name != "ClaudeX" {
+		t.Errorf("second tier = %v, want {ClaudeX 8.00}", tiers[1])
+	}
+}
