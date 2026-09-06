@@ -14,7 +14,7 @@ func TestRunHelp(t *testing.T) {
 
 	code := Run([]string{"--help"})
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	os.Stdout = old
@@ -31,7 +31,7 @@ func TestRunNoArgs(t *testing.T) {
 
 	code := Run(nil)
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	os.Stderr = old

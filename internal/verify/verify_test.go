@@ -254,7 +254,7 @@ func TestPrintReportAllPassed(t *testing.T) {
 
 	PrintReport(summary)
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	os.Stdout = old
@@ -297,7 +297,7 @@ func TestPrintReportWithFailures(t *testing.T) {
 
 	PrintReport(summary)
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	os.Stdout = old
@@ -328,7 +328,7 @@ func TestPrintReportEmpty(t *testing.T) {
 	summary := Summary{}
 	PrintReport(summary)
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	os.Stdout = old

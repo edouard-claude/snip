@@ -610,7 +610,7 @@ func TestRunWithData(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	os.Stderr = old
@@ -648,7 +648,7 @@ func TestRunGenerate(t *testing.T) {
 		t.Fatalf("Run --generate: %v", err)
 	}
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	os.Stdout = old
@@ -734,7 +734,7 @@ func TestPrintResultEmpty(t *testing.T) {
 
 	printResult(Result{})
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	os.Stdout = old
@@ -769,7 +769,7 @@ func TestPrintResultWithData(t *testing.T) {
 		},
 	})
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	os.Stdout = old
