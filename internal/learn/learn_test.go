@@ -612,7 +612,7 @@ func TestRunWithData(t *testing.T) {
 
 	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stderr = old
 }
 
@@ -650,7 +650,7 @@ func TestRunGenerate(t *testing.T) {
 
 	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stdout = old
 }
 
@@ -736,7 +736,7 @@ func TestPrintResultEmpty(t *testing.T) {
 
 	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stdout = old
 
 	output := buf.String()
@@ -771,7 +771,7 @@ func TestPrintResultWithData(t *testing.T) {
 
 	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stdout = old
 
 	output := buf.String()

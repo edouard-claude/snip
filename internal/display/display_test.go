@@ -138,8 +138,8 @@ func TestPrintFiltered(t *testing.T) {
 	_ = wOut.Close()
 	_ = wErr.Close()
 	var outBuf, errBuf bytes.Buffer
-	io.Copy(&outBuf, rOut)
-	io.Copy(&errBuf, rErr)
+	_, _ = io.Copy(&outBuf, rOut)
+	_, _ = io.Copy(&errBuf, rErr)
 	os.Stdout = oldStdout
 	os.Stderr = oldStderr
 
@@ -166,8 +166,8 @@ func TestPrintFilteredVerbose(t *testing.T) {
 	_ = wOut.Close()
 	_ = wErr.Close()
 	var outBuf, errBuf bytes.Buffer
-	io.Copy(&outBuf, rOut)
-	io.Copy(&errBuf, rErr)
+	_, _ = io.Copy(&outBuf, rOut)
+	_, _ = io.Copy(&errBuf, rErr)
 	os.Stdout = oldStdout
 	os.Stderr = oldStderr
 
