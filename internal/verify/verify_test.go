@@ -256,7 +256,7 @@ func TestPrintReportAllPassed(t *testing.T) {
 
 	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stdout = old
 
 	output := buf.String()
@@ -299,7 +299,7 @@ func TestPrintReportWithFailures(t *testing.T) {
 
 	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stdout = old
 
 	output := buf.String()
@@ -330,7 +330,7 @@ func TestPrintReportEmpty(t *testing.T) {
 
 	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stdout = old
 
 	output := buf.String()
@@ -351,9 +351,9 @@ func TestRunNoArgs(t *testing.T) {
 
 	exitCode := Run(nil)
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stdout = old
 
 	if exitCode != 0 {

@@ -336,9 +336,9 @@ func TestRunGainUnfilteredEmpty(t *testing.T) {
 
 	runErr := RunGain(tracker, []string{"--unfiltered"})
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stdout = old
 
 	if runErr != nil {
@@ -373,9 +373,9 @@ func TestRunGainUnfilteredWithData(t *testing.T) {
 
 	runErr := RunGain(tracker, []string{"--unfiltered", "10"})
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stdout = old
 
 	if runErr != nil {

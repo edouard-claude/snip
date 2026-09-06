@@ -16,7 +16,7 @@ func TestRunHelp(t *testing.T) {
 
 	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stdout = old
 
 	if code != 0 {
@@ -33,7 +33,7 @@ func TestRunNoArgs(t *testing.T) {
 
 	_ = w.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	os.Stderr = old
 
 	// Should find the Go module root (this project) and run fine.
