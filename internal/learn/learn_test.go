@@ -1,6 +1,8 @@
 package learn
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -581,6 +583,77 @@ func TestFindProjectDirsRespectsClaudeConfigDir(t *testing.T) {
 	}
 }
 
+func TestRunWithData(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	cwd, _ := os.Getwd()
+	projectDir := filepath.Join(tmpHome, ".claude", "projects", cwdToProjectName(cwd))
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	sessionFile := filepath.Join(projectDir, "session.jsonl")
+	writeLines(t, sessionFile, []string{
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"a","name":"Bash","input":{"command":"git status"}}]},"timestamp":"2026-04-01T10:00:00.000Z"}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"a","content":"error: command not found","is_error":true}]},"timestamp":"2026-04-01T10:00:05.000Z"}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b","name":"Bash","input":{"command":"git branch"}}]},"timestamp":"2026-04-01T10:00:10.000Z"}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"b","content":"* main"}]},"timestamp":"2026-04-01T10:00:15.000Z"}`,
+	})
+
+	old := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	err := Run([]string{"--since", "365"})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	os.Stderr = old
+}
+
+func TestRunGenerate(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	cwd, _ := os.Getwd()
+	projectDir := filepath.Join(tmpHome, ".claude", "projects", cwdToProjectName(cwd))
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	sessionFile := filepath.Join(projectDir, "session.jsonl")
+	writeLines(t, sessionFile, []string{
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"a","name":"Bash","input":{"command":"git status"}}]},"timestamp":"2026-04-01T10:00:00.000Z"}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"a","content":"error: command not found","is_error":true}]},"timestamp":"2026-04-01T10:00:05.000Z"}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b","name":"Bash","input":{"command":"git branch"}}]},"timestamp":"2026-04-01T10:00:10.000Z"}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"b","content":"* main"}]},"timestamp":"2026-04-01T10:00:15.000Z"}`,
+	})
+
+	// Clean up the rules file that generateRules creates in CWD.
+	ruleFile := filepath.Join(".claude", "rules", "cli-corrections.md")
+	t.Cleanup(func() { _ = os.RemoveAll(ruleFile) })
+
+	// Capture stdout for the print result
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := Run([]string{"--since", "365", "--generate"})
+	if err != nil {
+		t.Fatalf("Run --generate: %v", err)
+	}
+
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	os.Stdout = old
+}
+
 func writeLines(t *testing.T, path string, lines []string) {
 	t.Helper()
 	data := ""
@@ -651,5 +724,70 @@ func TestExtractCommandEntriesDropsRejections(t *testing.T) {
 	}
 	if patterns := detectPatterns(entries); len(patterns) != 0 {
 		t.Errorf("expected no pattern from a rejection, got %d", len(patterns))
+	}
+}
+
+func TestPrintResultEmpty(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printResult(Result{})
+
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	os.Stdout = old
+
+	output := buf.String()
+	if !strings.Contains(output, "No error-correction patterns found") {
+		t.Error("expected 'No error-correction patterns found' message")
+	}
+}
+
+func TestPrintResultWithData(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printResult(Result{
+		SessionsScanned: 5,
+		TotalErrors:     3,
+		Groups: []PatternGroup{
+			{
+				BaseCommand: "go",
+				TotalCount:  2,
+				Patterns: []ErrorPattern{
+					{
+						BaseCommand:  "go",
+						ErrorCommand: "go tes ./...",
+						ErrorOutput:  "go: unknown subcommand",
+						FixCommand:   "go test ./...",
+					},
+				},
+			},
+		},
+	})
+
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	os.Stdout = old
+
+	output := buf.String()
+	if !strings.Contains(output, "Scanned: 5 sessions") {
+		t.Error("expected session count")
+	}
+	if !strings.Contains(output, "3 errors with corrections") {
+		t.Error("expected error count")
+	}
+	if !strings.Contains(output, "Common patterns") {
+		t.Error("expected 'Common patterns' section")
+	}
+	if !strings.Contains(output, "go") {
+		t.Error("expected 'go' base command")
+	}
+	if !strings.Contains(output, "2 occurrences") {
+		t.Error("expected '2 occurrences'")
 	}
 }

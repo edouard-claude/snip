@@ -310,6 +310,24 @@ func TestRewriteEmbedsPluginConfigFlag(t *testing.T) {
 	}
 }
 
+func TestFirstBase(t *testing.T) {
+	tests := []struct {
+		cmd  string
+		want string
+	}{
+		{"git log", "git"},
+		{"go test ./...", "go"},
+		{"git add . && go test", "git"},
+		{"git log\ngit status", "git"},
+	}
+	for _, tt := range tests {
+		got := firstBase(tt.cmd)
+		if got != tt.want {
+			t.Errorf("firstBase(%q) = %q, want %q", tt.cmd, got, tt.want)
+		}
+	}
+}
+
 func TestRewriteNoPluginConfigFlagWhenUnset(t *testing.T) {
 	t.Setenv("SNIP_PLUGIN_CONFIG", "")
 

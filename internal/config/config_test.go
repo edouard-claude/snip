@@ -1987,3 +1987,25 @@ transparent_prefixes = ["docker exec app"]
 		t.Errorf("TransparentPrefixes = %v, want %v", cfg.Filters.TransparentPrefixes, want)
 	}
 }
+
+func TestPathDefault(t *testing.T) {
+	t.Setenv("SNIP_CONFIG", "")
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	path := Path()
+	expected := filepath.Join(tmpDir, ".config", "snip", "config.toml")
+	if path != expected {
+		t.Errorf("Path() = %q, want %q", path, expected)
+	}
+}
+
+func TestPathEnvOverride(t *testing.T) {
+	customPath := filepath.Join(t.TempDir(), "custom-config.toml")
+	t.Setenv("SNIP_CONFIG", customPath)
+
+	path := Path()
+	if path != customPath {
+		t.Errorf("Path() = %q, want %q", path, customPath)
+	}
+}

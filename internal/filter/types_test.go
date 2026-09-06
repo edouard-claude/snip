@@ -314,3 +314,55 @@ on_error: "passthrough"
 		t.Errorf("Match.Command = %q, want echo", f.Match.Command)
 	}
 }
+
+func TestMatchSubcommandIsZero(t *testing.T) {
+	// An omitted subcommand IsZero() should return true.
+	var s MatchSubcommand
+	if !s.IsZero() {
+		t.Error("IsZero() of unset MatchSubcommand should be true")
+	}
+
+	// A present subcommand should not be zero.
+	s2 := NewSubcommand("install")
+	if s2.IsZero() {
+		t.Error("IsZero() of set MatchSubcommand should be false")
+	}
+}
+
+func TestPipelineActionNames(t *testing.T) {
+	f := Filter{
+		Pipeline: Pipeline{
+			{ActionName: "head"},
+			{ActionName: "keep_lines"},
+			{ActionName: "strip_ansi"},
+		},
+	}
+	names := f.PipelineActionNames()
+	if len(names) != 3 {
+		t.Fatalf("got %d names, want 3", len(names))
+	}
+	if names[0] != "head" || names[1] != "keep_lines" || names[2] != "strip_ansi" {
+		t.Errorf("names = %v, want [head keep_lines strip_ansi]", names)
+	}
+
+	// Empty pipeline.
+	f2 := Filter{Pipeline: Pipeline{}}
+	names2 := f2.PipelineActionNames()
+	if len(names2) != 0 {
+		t.Errorf("got %d names for empty pipeline, want 0", len(names2))
+	}
+}
+
+func TestMatchSubcommandString(t *testing.T) {
+	// Empty subcommand should return empty string.
+	var s MatchSubcommand
+	if s.String() != "" {
+		t.Errorf("String() of empty MatchSubcommand = %q, want \"\"", s.String())
+	}
+
+	// Present subcommand should return first value.
+	s2 := NewSubcommand("install")
+	if s2.String() != "install" {
+		t.Errorf("String() = %q, want \"install\"", s2.String())
+	}
+}

@@ -1060,3 +1060,106 @@ commands = ["terraform"]
 		}
 	}
 }
+
+func TestVersion(t *testing.T) {
+	v := Version()
+	if v == "" {
+		t.Error("Version() should not return empty string")
+	}
+}
+
+func TestBuildCommandString(t *testing.T) {
+	tests := []struct {
+		command string
+		args    []string
+		want    string
+	}{
+		{"git", nil, "git"},
+		{"git", []string{}, "git"},
+		{"git", []string{"log", "-10"}, "git log -10"},
+		{"docker", []string{"ps", "-a"}, "docker ps -a"},
+	}
+	for _, tt := range tests {
+		got := BuildCommandString(tt.command, tt.args)
+		if got != tt.want {
+			t.Errorf("BuildCommandString(%q, %v) = %q, want %q", tt.command, tt.args, got, tt.want)
+		}
+	}
+}
+
+func TestRunTrustWithFile(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	// Create a YAML filter file to trust.
+	dir := t.TempDir()
+	filterPath := filepath.Join(dir, "filter.yaml")
+	if err := os.WriteFile(filterPath, []byte("name: test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	code := runTrust([]string{filterPath})
+	if code != 0 {
+		t.Errorf("runTrust: expected exit 0, got %d", code)
+	}
+}
+
+func TestRunUntrustWithFile(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	// Trust a file first.
+	dir := t.TempDir()
+	filterPath := filepath.Join(dir, "filter.yaml")
+	if err := os.WriteFile(filterPath, []byte("name: test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	code := runTrust([]string{filterPath})
+	if code != 0 {
+		t.Fatalf("runTrust: %d", code)
+	}
+
+	// Now untrust it.
+	code = runUntrust([]string{filterPath})
+	if code != 0 {
+		t.Errorf("runUntrust: expected exit 0, got %d", code)
+	}
+}
+
+func TestRunTrustWithDir(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "test.yaml"), []byte("name: test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	code := runTrust([]string{dir})
+	if code != 0 {
+		t.Errorf("runTrust with dir: expected exit 0, got %d", code)
+	}
+}
+
+func TestRunTrustWithEmptyDir(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	dir := t.TempDir()
+	// Empty directory — no YAML files, so runTrust should fail.
+	code := runTrust([]string{dir})
+	if code != 1 {
+		t.Errorf("runTrust with empty dir: expected exit 1, got %d", code)
+	}
+}
+
+func TestRunTrustNonexistent(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	code := runTrust([]string{"/nonexistent/file.yaml"})
+	if code != 1 {
+		t.Errorf("runTrust nonexistent: expected exit 1, got %d", code)
+	}
+}

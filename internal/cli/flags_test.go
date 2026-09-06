@@ -185,3 +185,39 @@ func TestParseFlagsPluginConfigMissingValue(t *testing.T) {
 		t.Errorf("remaining: got %v, want empty", remaining)
 	}
 }
+
+func TestIsStackedVerboseFlag(t *testing.T) {
+	tests := []struct {
+		arg  string
+		want bool
+	}{
+		{"-v", true},
+		{"-vv", true},
+		{"-vvv", true},
+		{"-vvvv", true},
+		{"-x", false},
+		{"--verbose", false},
+		{"-vx", false},
+		{"-", false},
+		{"v", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		got := isStackedVerboseFlag(tt.arg)
+		if got != tt.want {
+			t.Errorf("isStackedVerboseFlag(%q) = %v, want %v", tt.arg, got, tt.want)
+		}
+	}
+}
+
+func TestIsBuiltInCommand(t *testing.T) {
+	if !isBuiltInCommand("run") {
+		t.Error("run should be built-in")
+	}
+	if !isBuiltInCommand("trust") {
+		t.Error("trust should be built-in")
+	}
+	if isBuiltInCommand("git") {
+		t.Error("git should not be built-in")
+	}
+}

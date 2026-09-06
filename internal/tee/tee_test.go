@@ -240,3 +240,22 @@ func TestRotateFiles(t *testing.T) {
 		t.Errorf("expected 3 files after rotation, got %d", logCount)
 	}
 }
+
+func TestDefaultConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	cfg := DefaultConfig()
+	if !cfg.Enabled {
+		t.Error("expected Enabled to be true by default")
+	}
+	if cfg.Mode != "failures" {
+		t.Errorf("expected Mode=failures, got %s", cfg.Mode)
+	}
+	if cfg.MaxFiles != 20 {
+		t.Errorf("expected MaxFiles=20, got %d", cfg.MaxFiles)
+	}
+	if cfg.MaxFileSize != 1<<20 {
+		t.Errorf("expected MaxFileSize=1MB, got %d", cfg.MaxFileSize)
+	}
+}
