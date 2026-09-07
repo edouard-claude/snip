@@ -13,6 +13,8 @@ import (
 const (
 	// hookIdentifier is used to detect snip entries in settings/hooks JSON.
 	hookIdentifier = "snip hook"
+	// hookIdentifierWindows is used to detect snip entries in settings/hooks JSON for Windows.
+	hookIdentifierWindows = "snip.exe hook"
 	// legacyHookFile is the old bash hook script filename (for migration).
 	legacyHookFile = "snip-rewrite.sh"
 )
@@ -33,7 +35,7 @@ var promptAgentFiles = map[string]string{
 	"copilot":     filepath.Join(".github", "copilot-instructions.md"),
 	"gemini":      "GEMINI.md",
 	"kilocode":    filepath.Join(".kilocode", "rules", "snip-rules.md"),
-	"antigravity": filepath.Join(".agents", "rules", "snip-rules.md"),
+	"antigravity": filepath.Join(".agents", "rules", "snip-rules.md"), // using migration
 }
 
 // promptFileShared reports whether more than one agent writes filename. Shared
@@ -170,7 +172,9 @@ func Run(args []string) error {
 			return initPromptAgent(agent, snipBin, filterDir)
 		}
 		return initGrok(snipBin, home, filterDir)
-	case "windsurf", "cline", "gemini", "kilocode", "antigravity":
+	case "antigravity":
+		return initAntigravity(snipBin, filterDir)
+	case "windsurf", "cline", "gemini", "kilocode":
 		return initPromptAgent(agent, snipBin, filterDir)
 	}
 	return nil
@@ -305,7 +309,9 @@ func Uninstall(agent string) error {
 		return uninstallCopilot()
 	case "grok":
 		return uninstallGrok()
-	case "windsurf", "cline", "gemini", "kilocode", "antigravity":
+	case "antigravity":
+		return uninstallAntigravity()
+	case "windsurf", "cline", "gemini", "kilocode":
 		return uninstallPromptAgent(agent)
 	}
 	return nil
@@ -350,6 +356,19 @@ func uninstallCursor() error {
 // uninstallPromptAgent removes the prompt-injection file for the given agent.
 // For agents with subdirectory paths, it also removes empty parent directories.
 func uninstallPromptAgent(agent string) error {
+	err := removePromptAgent(agent)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("snip uninstalled (%s)\n", agent)
+	return nil
+}
+
+// removePromptAgent removes the prompt-injection file for the given agent.
+// For agents with subdirectory paths, it also removes empty parent directories.
+// Using uninstall prompt agent and migrate old hook prompt
+func removePromptAgent(agent string) error {
 	filename := promptAgentFiles[agent]
 	targetPath := filepath.Join(".", filename)
 
@@ -364,7 +383,6 @@ func uninstallPromptAgent(agent string) error {
 		}
 	}
 
-	fmt.Printf("snip uninstalled (%s)\n", agent)
 	return nil
 }
 
@@ -547,6 +565,35 @@ func isSnipCursorEntry(entry any) bool {
 		cmd, _ := hm["command"].(string)
 		if strings.Contains(cmd, hookIdentifier) {
 			return true
+		}
+	}
+	return false
+}
+
+func isSnipHookEntry(entry any, identifierArr []string) bool {
+	m, ok := entry.(map[string]any)
+	if !ok {
+		return false
+	}
+	hooksRaw, ok := m["hooks"]
+	if !ok {
+		return false
+	}
+	hooksArr, ok := hooksRaw.([]any)
+	if !ok {
+		return false
+	}
+	for _, h := range hooksArr {
+		hm, ok := h.(map[string]any)
+		if !ok {
+			continue
+		}
+		cmd, _ := hm["command"].(string)
+		cmd = strings.NewReplacer("\"", "", "'", "").Replace(cmd)
+		for _, v := range identifierArr {
+			if strings.Contains(cmd, v) {
+				return true
+			}
 		}
 	}
 	return false

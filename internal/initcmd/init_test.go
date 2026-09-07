@@ -521,7 +521,6 @@ func TestPromptAgentFiles(t *testing.T) {
 		{"copilot", filepath.Join(".github", "copilot-instructions.md")},
 		{"gemini", "GEMINI.md"},
 		{"kilocode", filepath.Join(".kilocode", "rules", "snip-rules.md")},
-		{"antigravity", filepath.Join(".agents", "rules", "snip-rules.md")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.agent, func(t *testing.T) {

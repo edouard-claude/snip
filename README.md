@@ -168,7 +168,7 @@ snip integrates with every major AI coding assistant. One binary, universal comp
 | **Windsurf** | `snip init --agent windsurf` | .windsurfrules prompt injection |
 | **Cline / Roo Code** | `snip init --agent cline` | .clinerules prompt injection |
 | **Kilo Code** | `snip init --agent kilocode` | .kilocode/rules/ prompt injection |
-| **Antigravity** | `snip init --agent antigravity` | .agents/rules/ prompt injection |
+| **Antigravity** | `snip init --agent antigravity` | PreToolUse hook (native) |
 | **OpenCode** | [opencode-snip](https://github.com/VincentHardouin/opencode-snip) plugin | tool.execute.before hook |
 | **OpenClaw** | `openclaw plugins install openclaw-snip` | plugin |
 | **Aider** | shell aliases | prefix commands with snip |
@@ -271,14 +271,21 @@ snip init --agent copilot --mode prompt   # creates .github/copilot-instructions
 snip init --agent copilot --uninstall     # remove the hook
 ```
 
-### Gemini / Windsurf / Cline / Kilo Code / Antigravity
+### Antigravity
+
+`PreToolUse` is supported. This patches `~/.gemini/config/hooks.json`.
+
+```bash
+snip init --agent antigravity
+```
+
+### Gemini / Windsurf / Cline / Kilo Code
 
 ```bash
 snip init --agent gemini       # creates GEMINI.md
 snip init --agent windsurf     # creates .windsurfrules
 snip init --agent cline        # creates .clinerules
 snip init --agent kilocode     # creates .kilocode/rules/snip-rules.md
-snip init --agent antigravity  # creates .agents/rules/snip-rules.md
 ```
 
 These agents use prompt injection: a markdown file instructs the LLM to prefix shell commands with snip. Project-scoped (created in the current directory).

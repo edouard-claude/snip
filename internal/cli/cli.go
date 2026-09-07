@@ -78,6 +78,9 @@ func Run(args []string) int {
 		if len(cmdArgs) > 0 && cmdArgs[0] == "grok" {
 			return runHookGrok()
 		}
+		if len(cmdArgs) > 0 && cmdArgs[0] == "antigravity" {
+			return runHookAntigravity()
+		}
 		return runHook()
 
 	case "hook-audit":
@@ -301,6 +304,17 @@ func runHookGrok() int {
 	if denied {
 		return grokDenyExitCode
 	}
+	return 0
+}
+
+// runHookAntigravity handles the "snip hook" subcommand for Antigravity PreToolUse.
+// Always returns 0 (graceful degradation).
+func runHookAntigravity() int {
+	snipBin, commands, prefixes, ok := loadHookContext()
+	if !ok {
+		return 0
+	}
+	_ = hook.RunAntigravity(os.Stdin, os.Stdout, commands, prefixes, snipBin)
 	return 0
 }
 
