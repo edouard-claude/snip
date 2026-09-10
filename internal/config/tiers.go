@@ -1,15 +1,21 @@
-package economics
+package config
 
 import (
 	"sort"
 	"strings"
-
-	"github.com/edouard-claude/snip/internal/config"
 )
+
+// Tier holds a model tier name and its input price per 1M tokens.
+type Tier struct {
+	Name   string
+	PriceM float64 // price per 1M input tokens
+}
 
 // defaultTiers are current Anthropic list prices, $ per 1M input tokens
 // (as of 2026-08). Overridable via [economics.tiers] in config.toml for
-// negotiated or non-Anthropic rates.
+// negotiated or non-Anthropic rates. Single source of truth: both
+// `cc-economics` and `gain --quota` price saved tokens from this table
+// (issue #186).
 var defaultTiers = []Tier{
 	{Name: "Haiku", PriceM: 1.00},
 	{Name: "Sonnet", PriceM: 3.00},
@@ -20,7 +26,7 @@ var defaultTiers = []Tier{
 // ActiveTiers returns the pricing tiers to report on: the [economics.tiers]
 // entries from the config when present (sorted by ascending price), the
 // built-in defaults otherwise.
-func ActiveTiers(cfg config.EconomicsConfig) []Tier {
+func ActiveTiers(cfg EconomicsConfig) []Tier {
 	if len(cfg.Tiers) == 0 {
 		return defaultTiers
 	}

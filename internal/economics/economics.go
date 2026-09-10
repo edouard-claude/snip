@@ -10,12 +10,6 @@ import (
 	"github.com/edouard-claude/snip/internal/utils"
 )
 
-// Tier holds a model tier name and its input price per 1M tokens.
-type Tier struct {
-	Name   string
-	PriceM float64 // price per 1M input tokens
-}
-
 // CostForTokens returns the dollar cost for the given token count at the tier price.
 func CostForTokens(tokens int, pricePerM float64) float64 {
 	return float64(tokens) / 1_000_000 * pricePerM
@@ -40,7 +34,7 @@ func Run(tracker *tracking.Tracker, ecoCfg config.EconomicsConfig, args []string
 		return nil
 	}
 
-	activeTiers := ActiveTiers(ecoCfg)
+	activeTiers := config.ActiveTiers(ecoCfg)
 
 	// Parse --tier flag
 	var filterTier string
@@ -51,8 +45,8 @@ func Run(tracker *tracking.Tracker, ecoCfg config.EconomicsConfig, args []string
 		}
 	}
 
-	if filterTier != "" && FindTier(activeTiers, filterTier) == nil {
-		return fmt.Errorf("unknown tier %q (valid: %s)", filterTier, strings.Join(TierNames(activeTiers), ", "))
+	if filterTier != "" && config.FindTier(activeTiers, filterTier) == nil {
+		return fmt.Errorf("unknown tier %q (valid: %s)", filterTier, strings.Join(config.TierNames(activeTiers), ", "))
 	}
 
 	summary, err := tracker.GetSummary()
@@ -99,8 +93,8 @@ func Run(tracker *tracking.Tracker, ecoCfg config.EconomicsConfig, args []string
 
 	tiers := activeTiers
 	if filterTier != "" {
-		t := FindTier(activeTiers, filterTier)
-		tiers = []Tier{*t}
+		t := config.FindTier(activeTiers, filterTier)
+		tiers = []config.Tier{*t}
 	}
 
 	nameWidth := 8

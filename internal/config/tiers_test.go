@@ -1,13 +1,9 @@
-package economics
+package config
 
-import (
-	"testing"
-
-	"github.com/edouard-claude/snip/internal/config"
-)
+import "testing"
 
 func TestActiveTiersDefaults(t *testing.T) {
-	tiers := ActiveTiers(config.EconomicsConfig{})
+	tiers := ActiveTiers(EconomicsConfig{})
 	if len(tiers) != 4 {
 		t.Fatalf("expected 4 default tiers, got %v", tiers)
 	}
@@ -20,7 +16,7 @@ func TestActiveTiersDefaults(t *testing.T) {
 }
 
 func TestActiveTiersFromConfigSortedByPrice(t *testing.T) {
-	tiers := ActiveTiers(config.EconomicsConfig{Tiers: map[string]float64{
+	tiers := ActiveTiers(EconomicsConfig{Tiers: map[string]float64{
 		"premium": 9.99, "budget": 0.50, "standard": 2.00,
 	}})
 	if len(tiers) != 3 {
@@ -32,7 +28,7 @@ func TestActiveTiersFromConfigSortedByPrice(t *testing.T) {
 }
 
 func TestFindTierCaseInsensitive(t *testing.T) {
-	tiers := ActiveTiers(config.EconomicsConfig{Tiers: map[string]float64{"Negotiated": 2.75}})
+	tiers := ActiveTiers(EconomicsConfig{Tiers: map[string]float64{"Negotiated": 2.75}})
 	if tier := FindTier(tiers, "negotiated"); tier == nil || tier.PriceM != 2.75 {
 		t.Errorf("FindTier(negotiated): got %v", tier)
 	}
