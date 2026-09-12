@@ -113,7 +113,7 @@ func Run(args []string) int {
 			return 1
 		}
 		defer func() { _ = tracker.Close() }()
-		if err := display.RunGain(tracker, cmdArgs); err != nil {
+		if err := display.RunGain(tracker, cfg.Economics, cmdArgs); err != nil {
 			display.PrintError(err.Error())
 			return 1
 		}

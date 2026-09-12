@@ -99,10 +99,10 @@ func TestTierByName(t *testing.T) {
 		{"opus", "Opus"},
 	}
 
-	defaults := ActiveTiers(config.EconomicsConfig{})
+	defaults := config.ActiveTiers(config.EconomicsConfig{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tier := FindTier(defaults, tt.name)
+			tier := config.FindTier(defaults, tt.name)
 			if tier == nil {
 				t.Fatalf("FindTier(%q) returned nil", tt.name)
 			}
@@ -114,7 +114,7 @@ func TestTierByName(t *testing.T) {
 }
 
 func TestTierByNameUnknown(t *testing.T) {
-	tier := FindTier(ActiveTiers(config.EconomicsConfig{}), "unknown")
+	tier := config.FindTier(config.ActiveTiers(config.EconomicsConfig{}), "unknown")
 	if tier != nil {
 		t.Errorf("FindTier(\"unknown\") = %v, want nil", tier)
 	}
@@ -128,7 +128,7 @@ func TestTierPricing(t *testing.T) {
 		"Opus":   5.00,
 		"Fable":  10.00,
 	}
-	for _, tier := range ActiveTiers(config.EconomicsConfig{}) {
+	for _, tier := range config.ActiveTiers(config.EconomicsConfig{}) {
 		want, ok := expected[tier.Name]
 		if !ok {
 			t.Errorf("unexpected tier %q", tier.Name)
@@ -240,7 +240,7 @@ func TestActiveTiersCustom(t *testing.T) {
 			"ClaudeY": 2.00,
 		},
 	}
-	tiers := ActiveTiers(cfg)
+	tiers := config.ActiveTiers(cfg)
 	if len(tiers) != 2 {
 		t.Fatalf("expected 2 tiers, got %d", len(tiers))
 	}
