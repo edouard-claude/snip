@@ -8,16 +8,41 @@ import "testing"
 // ("Unexpected token 'run' in expression or statement").
 func TestQuoteBinFor(t *testing.T) {
 	cases := []struct {
-		name string
-		path string
-		goos string
-		want string
+		name  string
+		path  string
+		goos  string
+		shell Shell
+		want  string
 	}{
 		{
 			name: "windows path without spaces is bare",
 			path: `C:\Users\Administrator\.snip\snip.exe`,
 			goos: "windows",
 			want: `C:\Users\Administrator\.snip\snip.exe`,
+		},
+		{
+			// Issue #187: Git Bash eats the backslashes of a bare path
+			// (`\U` -> `U`, exit 127). Inside double quotes `\` is `\`, so
+			// the Go literal is exactly what bash needs.
+			name:  "windows path for a posix shell is a quoted literal",
+			path:  `C:\Users\Administrator\.snip\snip.exe`,
+			goos:  "windows",
+			shell: ShellPOSIX,
+			want:  `"C:\\Users\\Administrator\\.snip\\snip.exe"`,
+		},
+		{
+			name:  "windows path with a space for a posix shell",
+			path:  `C:\Program Files\snip\snip.exe`,
+			goos:  "windows",
+			shell: ShellPOSIX,
+			want:  `"C:\\Program Files\\snip\\snip.exe"`,
+		},
+		{
+			name:  "posix path for a posix shell is unchanged by the target",
+			path:  "/usr/local/bin/snip",
+			goos:  "linux",
+			shell: ShellPOSIX,
+			want:  `"/usr/local/bin/snip"`,
 		},
 		{
 			// Quotes are still required, and the backslashes must survive
@@ -43,8 +68,8 @@ func TestQuoteBinFor(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := QuoteBinFor(tc.path, tc.goos); got != tc.want {
-				t.Errorf("QuoteBinFor(%q, %q) = %q, want %q", tc.path, tc.goos, got, tc.want)
+			if got := QuoteBinFor(tc.path, tc.goos, tc.shell); got != tc.want {
+				t.Errorf("QuoteBinFor(%q, %q, %d) = %q, want %q", tc.path, tc.goos, tc.shell, got, tc.want)
 			}
 		})
 	}
@@ -56,7 +81,7 @@ func TestRewriteCommandWindowsBin(t *testing.T) {
 	const bin = `C:\Users\Administrator\.snip\snip.exe`
 	cmdSet := map[string]struct{}{"git": {}}
 
-	got, known, _ := rewriteGroup("git diff --check", cmdSet, nil, QuoteBinFor(bin, "windows"), bin)
+	got, known, _ := rewriteGroup("git diff --check", cmdSet, nil, QuoteBinFor(bin, "windows", ShellHost), bin, ShellHost)
 	want := `C:\Users\Administrator\.snip\snip.exe run -- git diff --check`
 	if got != want {
 		t.Errorf("rewritten = %q, want %q", got, want)
@@ -66,7 +91,7 @@ func TestRewriteCommandWindowsBin(t *testing.T) {
 	}
 
 	// Re-running the hook on its own output must not wrap it twice.
-	again, _, _ := rewriteGroup(want, cmdSet, nil, QuoteBinFor(bin, "windows"), bin)
+	again, _, _ := rewriteGroup(want, cmdSet, nil, QuoteBinFor(bin, "windows", ShellHost), bin, ShellHost)
 	if again != want {
 		t.Errorf("second pass = %q, want it unchanged", again)
 	}

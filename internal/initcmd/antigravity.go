@@ -24,7 +24,7 @@ func initAntigravity(snipBin, filterDir string) error {
 		}
 	}
 
-	hookCommand := hook.QuoteBinFor(snipBin, runtime.GOOS) + " hook antigravity"
+	hookCommand := hook.QuoteBinFor(snipBin, runtime.GOOS, hook.ShellHost) + " hook antigravity"
 	hooksPath := filepath.Join(agyBase, "config", "hooks.json")
 	if err := patchAntigravityHooks(hooksPath, hookCommand); err != nil {
 		return fmt.Errorf("patch settings: %w", err)

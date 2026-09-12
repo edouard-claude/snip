@@ -46,7 +46,7 @@ func initCodex(snipBin, home, filterDir string) error {
 
 	// Reuse the command-rewrite quoting so the installed hook works with the
 	// platform shell, including cmd.exe on Windows.
-	hookCommand := hook.QuoteBinFor(snipBin, runtime.GOOS) + " " + codexHookSubcommand
+	hookCommand := hook.QuoteBinFor(snipBin, runtime.GOOS, hook.ShellHost) + " " + codexHookSubcommand
 
 	hooksPath := codexHooksPath(home)
 	if err := patchCodexHooks(hooksPath, hookCommand); err != nil {
