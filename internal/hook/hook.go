@@ -67,8 +67,10 @@ func Run(r io.Reader, w io.Writer, commands []string, prefixes []TransparentPref
 		cmdSet[c] = struct{}{}
 	}
 
-	// Rewrite every runnable segment whose base command snip supports.
-	res := RewriteCommand(ti.Command, cmdSet, prefixes, snipBin)
+	// Rewrite every runnable segment whose base command snip supports. The
+	// Bash tool is a POSIX shell on every OS (Git Bash on Windows), so the
+	// binary path must survive bash quoting rather than PowerShell's (#187).
+	res := RewriteCommandFor(ShellPOSIX, ti.Command, cmdSet, prefixes, snipBin)
 	if !res.Changed {
 		// Audit: nothing matched (or already rewritten).
 		if audit {

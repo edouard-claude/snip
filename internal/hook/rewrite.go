@@ -52,7 +52,14 @@ type RewriteResult struct {
 // (HasUnverifiableConstruct) before calling this, so cmd here is free of command
 // substitution and carriage returns.
 func RewriteCommand(cmd string, cmdSet map[string]struct{}, prefixes []TransparentPrefix, snipBin string) RewriteResult {
-	quotedBin := quoteSnipBin(snipBin)
+	return RewriteCommandFor(ShellHost, cmd, cmdSet, prefixes, snipBin)
+}
+
+// RewriteCommandFor is RewriteCommand for a command that will execute in
+// shell rather than in the host shell. Claude Code's Bash tool is Git Bash on
+// Windows, so its hook passes ShellPOSIX (issue #187).
+func RewriteCommandFor(shell Shell, cmd string, cmdSet map[string]struct{}, prefixes []TransparentPrefix, snipBin string) RewriteResult {
+	quotedBin := quoteBin(snipBin, shell)
 
 	var b strings.Builder
 	b.Grow(len(cmd) + 32)
@@ -72,7 +79,7 @@ func RewriteCommand(cmd string, cmdSet map[string]struct{}, prefixes []Transpare
 				allKnown = false
 			}
 		} else {
-			out, headKnown, hasTail := rewriteGroup(group, cmdSet, prefixes, quotedBin, snipBin)
+			out, headKnown, hasTail := rewriteGroup(group, cmdSet, prefixes, quotedBin, snipBin, shell)
 			b.WriteString(out)
 			if out != group {
 				changed = true
@@ -240,7 +247,7 @@ func RewriteCommand(cmd string, cmdSet map[string]struct{}, prefixes []Transpare
 // between two sequential boundaries). It returns the rewritten group, whether
 // the head is a known/attested base command, and whether the group has a
 // non-empty pipeline tail (extra stages that were left uninspected).
-func rewriteGroup(group string, cmdSet map[string]struct{}, prefixes []TransparentPrefix, quotedBin, snipBin string) (out string, headKnown, hasTail bool) {
+func rewriteGroup(group string, cmdSet map[string]struct{}, prefixes []TransparentPrefix, quotedBin, snipBin string, shell Shell) (out string, headKnown, hasTail bool) {
 	head, tail := splitFirstPipe(group)
 	hasTail = strings.TrimSpace(tail) != ""
 
@@ -281,7 +288,7 @@ func rewriteGroup(group string, cmdSet map[string]struct{}, prefixes []Transpare
 			if feedsConsumer {
 				return group, true, hasTail
 			}
-			wrappedHead := prefix + envVars + tp.Prefix + " " + before + runInvocation(quotedBin) + rest[len(before):]
+			wrappedHead := prefix + envVars + tp.Prefix + " " + before + runInvocation(quotedBin, shell) + rest[len(before):]
 			return wrappedHead + tail, true, hasTail
 		}
 	}
@@ -295,7 +302,7 @@ func rewriteGroup(group string, cmdSet map[string]struct{}, prefixes []Transpare
 		return group, true, hasTail
 	}
 
-	wrappedHead := prefix + envVars + runInvocation(quotedBin) + bareCmd
+	wrappedHead := prefix + envVars + runInvocation(quotedBin, shell) + bareCmd
 	return wrappedHead + tail, true, hasTail
 }
 

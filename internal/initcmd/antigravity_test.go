@@ -13,7 +13,7 @@ import (
 func TestPatchAntigravityHooksNew(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "hooks.json")
-	hookCommand := hook.QuoteBinFor("/usr/local/bin/snip", runtime.GOOS) + " hook antigravity"
+	hookCommand := hook.QuoteBinFor("/usr/local/bin/snip", runtime.GOOS, hook.ShellHost) + " hook antigravity"
 
 	err := patchAntigravityHooks(path, hookCommand)
 	if err != nil {
@@ -54,7 +54,7 @@ func TestPatchAntigravityHooksNew(t *testing.T) {
 func TestPatchAntigravityHooksExisting(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "hooks.json")
-	hookCommand := hook.QuoteBinFor("/usr/local/bin/snip", runtime.GOOS) + " hook antigravity"
+	hookCommand := hook.QuoteBinFor("/usr/local/bin/snip", runtime.GOOS, hook.ShellHost) + " hook antigravity"
 
 	// Write existing hooks with other hooks
 	existing := map[string]any{
@@ -150,7 +150,7 @@ func TestPatchAntigravityHooksIdempotent(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			hookCommand := hook.QuoteBinFor(tc.path, tc.runtimeOS) + " hook antigravity"
+			hookCommand := hook.QuoteBinFor(tc.path, tc.runtimeOS, hook.ShellHost) + " hook antigravity"
 
 			// Patch twice
 			_ = patchAntigravityHooks(path, hookCommand)
@@ -196,7 +196,7 @@ func TestUnpatchAntigravityHooks(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			hookCommand := hook.QuoteBinFor(tc.path, tc.runtimeOS) + " hook antigravity"
+			hookCommand := hook.QuoteBinFor(tc.path, tc.runtimeOS, hook.ShellHost) + " hook antigravity"
 
 			// Patch first
 			_ = patchAntigravityHooks(path, hookCommand)
@@ -247,7 +247,7 @@ func TestUnpatchAntigravityHooksPreservesOtherHooks(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			hookCommand := hook.QuoteBinFor(tc.path, tc.runtimeOS) + " hook antigravity"
+			hookCommand := hook.QuoteBinFor(tc.path, tc.runtimeOS, hook.ShellHost) + " hook antigravity"
 
 			// Create settings with snip + another hook
 			existing := map[string]any{
@@ -296,7 +296,7 @@ func TestPatchAntigravityHooksWindowsPath(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "hooks.json")
 	// Simulate a Windows-style snip hook command
-	hookCommand := hook.QuoteBinFor(`C:\Users\joedoe\go\bin\snip.exe`, runtime.GOOS) + ` hook antigravity`
+	hookCommand := hook.QuoteBinFor(`C:\Users\joedoe\go\bin\snip.exe`, runtime.GOOS, hook.ShellHost) + ` hook antigravity`
 
 	err := patchAntigravityHooks(path, hookCommand)
 	if err != nil {
