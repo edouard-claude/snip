@@ -12,11 +12,28 @@ streams:
 
 pipeline:
   - action: "strip_ansi"
+  - action: "remove_lines"
+    pattern: "^\\s*$"
   - action: "keep_lines"
     pattern: "(sent |received |total size|speedup|error|rsync:|bytes/sec)"
+    removed_msg: "+%d lines omitted (file list)"
   - action: "truncate_lines"
     max: 120
   - action: "head"
     n: 10
 
 on_error: "passthrough"
+
+tests:
+  - name: "file list is announced, not silently dropped"
+    input: |
+      sending incremental file list
+      src/main.go
+      src/util.go
+
+      sent 1,234 bytes  received 56 bytes  2,580.00 bytes/sec
+      total size is 10,240  speedup is 7.94
+    expected: |
+      sent 1,234 bytes  received 56 bytes  2,580.00 bytes/sec
+      total size is 10,240  speedup is 7.94
+      +3 lines omitted (file list)

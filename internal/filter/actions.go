@@ -104,6 +104,7 @@ func keepLines(input ActionResult, params map[string]any) (ActionResult, error) 
 			out = append(out, line)
 		}
 	}
+	out = appendRemovedMsg(out, len(input.Lines)-len(out), params)
 	return ActionResult{Lines: out, Metadata: input.Metadata}, nil
 }
 
@@ -118,7 +119,19 @@ func removeLines(input ActionResult, params map[string]any) (ActionResult, error
 			out = append(out, line)
 		}
 	}
+	out = appendRemovedMsg(out, len(input.Lines)-len(out), params)
 	return ActionResult{Lines: out, Metadata: input.Metadata}, nil
+}
+
+// appendRemovedMsg announces lines dropped by keep_lines/remove_lines when the
+// filter sets removed_msg (a fmt format taking the count), so a filtered answer
+// is distinguishable from an empty one (#194).
+func appendRemovedMsg(out []string, removed int, params map[string]any) []string {
+	msg := getStr(params, "removed_msg")
+	if msg == "" || removed == 0 {
+		return out
+	}
+	return append(out, fmt.Sprintf(msg, removed))
 }
 
 func truncateLines(input ActionResult, params map[string]any) (ActionResult, error) {

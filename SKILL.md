@@ -66,8 +66,8 @@ on_error: "passthrough"          # Descriptive convention: the engine ALWAYS fal
 
 | Action | Params | Description |
 |--------|--------|-------------|
-| `keep_lines` | `pattern` (regex) | Keep only lines matching the pattern |
-| `remove_lines` | `pattern` (regex) | Remove lines matching the pattern |
+| `keep_lines` | `pattern` (regex), `removed_msg` (fmt string with `%d`, optional) | Keep only lines matching the pattern. `removed_msg` appends a marker with the dropped count when N > 0 |
+| `remove_lines` | `pattern` (regex), `removed_msg` (fmt string with `%d`, optional) | Remove lines matching the pattern. `removed_msg` appends a marker with the dropped count when N > 0 |
 | `head` | `n` (int, default 10), `overflow_msg` (string, default "+{remaining} more lines") | Keep first N lines |
 | `tail` | `n` (int, default 10), `overflow_msg` (string, default "+{dropped} earlier lines") | Keep last N lines |
 | `dedup` | `normalize` ([]string of regexes to strip before comparing), `top` (int, 0=all) | Deduplicate lines, output "text (xN)" for repeats |
