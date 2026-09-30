@@ -7,10 +7,34 @@ match:
 
 pipeline:
   - action: "remove_lines"
-    pattern: "(^(tmpfs|devtmpfs|udev|none|overlay|shm) |^\\s*$)"
+    pattern: "^\\s*$"
+  - action: "remove_lines"
+    pattern: "^(tmpfs|devtmpfs|udev|none|overlay|shm) "
+    removed_msg: "+%d virtual filesystems hidden (tmpfs, devtmpfs, overlay...)"
   - action: "truncate_lines"
     max: 100
   - action: "head"
     n: 20
 
 on_error: "passthrough"
+
+tests:
+  - name: "virtual filesystems are announced, not silently dropped"
+    input: |
+      Filesystem      Size  Used Avail Use% Mounted on
+      /dev/nvme0n1p2  468G  201G  244G  46% /
+      tmpfs           7.8G  1.2G  6.6G  16% /tmp
+      tmpfs           7.8G     0  7.8G   0% /dev/shm
+      /dev/nvme0n1p1  511M   61M  451M  12% /boot/efi
+    expected: |
+      Filesystem      Size  Used Avail Use% Mounted on
+      /dev/nvme0n1p2  468G  201G  244G  46% /
+      /dev/nvme0n1p1  511M   61M  451M  12% /boot/efi
+      +2 virtual filesystems hidden (tmpfs, devtmpfs, overlay...)
+  - name: "no marker without virtual filesystems"
+    input: |
+      Filesystem      Size  Used Avail Use% Mounted on
+      /dev/disk3s1    926G  512G  400G  57% /
+    expected: |
+      Filesystem      Size  Used Avail Use% Mounted on
+      /dev/disk3s1    926G  512G  400G  57% /

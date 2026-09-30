@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -42,6 +43,37 @@ func TestRemoveLines(t *testing.T) {
 	}
 	if len(res.Lines) != 2 {
 		t.Errorf("got %d lines, want 2", len(res.Lines))
+	}
+}
+
+func TestRemovedMsg(t *testing.T) {
+	input := lines("keep a", "drop 1", "keep b", "drop 2")
+	tests := []struct {
+		name   string
+		action ActionFunc
+		params map[string]any
+		want   []string
+	}{
+		{"remove_lines announces drops", removeLines,
+			map[string]any{"pattern": `^drop`, "removed_msg": "+%d dropped"},
+			[]string{"keep a", "keep b", "+2 dropped"}},
+		{"keep_lines announces drops", keepLines,
+			map[string]any{"pattern": `^keep`, "removed_msg": "+%d dropped"},
+			[]string{"keep a", "keep b", "+2 dropped"}},
+		{"silent when nothing dropped", removeLines,
+			map[string]any{"pattern": `^none`, "removed_msg": "+%d dropped"},
+			[]string{"keep a", "drop 1", "keep b", "drop 2"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := tt.action(input, tt.params)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(res.Lines, tt.want) {
+				t.Errorf("got %q, want %q", res.Lines, tt.want)
+			}
+		})
 	}
 }
 
