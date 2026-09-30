@@ -34,12 +34,12 @@ homebrew_casks:
       name: homebrew-tap
     homepage: "https://github.com/edouard-claude/snip"
     description: "CLI proxy that reduces LLM token consumption by 60-90% by filtering shell output"
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/snip"]
-          end
+    custom_block: |
+      postflight_steps do
+        on_macos do
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{staged_path}}" }}/snip"]
+        end
+      end
 
 changelog:
   sort: asc
