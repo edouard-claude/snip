@@ -64,7 +64,9 @@ func RunPi(r io.Reader, w io.Writer, commands []string, prefixes []TransparentPr
 		cmdSet[c] = struct{}{}
 	}
 
-	res := RewriteCommand(ti.Command, cmdSet, prefixes, snipBin)
+	// Pi's bash tool is a POSIX shell on every OS, Git Bash on Windows, so the
+	// binary path has to survive bash quoting like Claude Code's does (#187, #196).
+	res := RewriteCommandFor(ShellPOSIX, ti.Command, cmdSet, prefixes, snipBin)
 	if !res.Changed {
 		if audit {
 			base := firstBase(ti.Command)
