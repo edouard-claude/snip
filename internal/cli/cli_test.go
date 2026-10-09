@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/edouard-claude/snip/internal/testutil"
 	"github.com/edouard-claude/snip/internal/trust"
 )
 
@@ -258,7 +259,7 @@ func TestCheckNoFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
 
 	var buf bytes.Buffer
@@ -308,7 +309,7 @@ on_error: "passthrough"
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
 
 	var buf bytes.Buffer
@@ -358,7 +359,7 @@ on_error: "passthrough"
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
 
 	var buf bytes.Buffer
@@ -508,7 +509,7 @@ on_error: "passthrough"
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
 
 	old := os.Stdout
@@ -553,7 +554,7 @@ on_error: "passthrough"
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
 
 	var buf bytes.Buffer
@@ -598,7 +599,7 @@ on_error: "passthrough"
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
 
 	var buf bytes.Buffer
@@ -627,7 +628,7 @@ func TestCheckBareCommandNoFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
 
 	old := os.Stdout
@@ -679,7 +680,7 @@ git-log = true
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
 
 	old := os.Stdout
@@ -737,7 +738,7 @@ git-log = false
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
 
 	var buf bytes.Buffer
@@ -1020,7 +1021,7 @@ commands = ["terraform"]
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	t.Setenv("SNIP_PLUGIN_CONFIG", "")
 	oldWd, _ := os.Getwd()
@@ -1089,7 +1090,7 @@ func TestBuildCommandString(t *testing.T) {
 
 func TestRunTrustWithFile(t *testing.T) {
 	tmpHome := t.TempDir()
-	t.Setenv("HOME", tmpHome)
+	testutil.SetHome(t, tmpHome)
 
 	// Create a YAML filter file to trust.
 	dir := t.TempDir()
@@ -1106,7 +1107,7 @@ func TestRunTrustWithFile(t *testing.T) {
 
 func TestRunUntrustWithFile(t *testing.T) {
 	tmpHome := t.TempDir()
-	t.Setenv("HOME", tmpHome)
+	testutil.SetHome(t, tmpHome)
 
 	// Trust a file first.
 	dir := t.TempDir()
@@ -1129,7 +1130,7 @@ func TestRunUntrustWithFile(t *testing.T) {
 
 func TestRunTrustWithDir(t *testing.T) {
 	tmpHome := t.TempDir()
-	t.Setenv("HOME", tmpHome)
+	testutil.SetHome(t, tmpHome)
 
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "test.yaml"), []byte("name: test\n"), 0o644); err != nil {
@@ -1144,7 +1145,7 @@ func TestRunTrustWithDir(t *testing.T) {
 
 func TestRunTrustWithEmptyDir(t *testing.T) {
 	tmpHome := t.TempDir()
-	t.Setenv("HOME", tmpHome)
+	testutil.SetHome(t, tmpHome)
 
 	dir := t.TempDir()
 	// Empty directory — no YAML files, so runTrust should fail.
@@ -1156,7 +1157,7 @@ func TestRunTrustWithEmptyDir(t *testing.T) {
 
 func TestRunTrustNonexistent(t *testing.T) {
 	tmpHome := t.TempDir()
-	t.Setenv("HOME", tmpHome)
+	testutil.SetHome(t, tmpHome)
 
 	code := runTrust([]string{"/nonexistent/file.yaml"})
 	if code != 1 {

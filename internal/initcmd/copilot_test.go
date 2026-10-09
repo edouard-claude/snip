@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/edouard-claude/snip/internal/testutil"
 )
 
 func TestBuildCopilotHookConfig(t *testing.T) {
@@ -77,7 +79,7 @@ func TestInitCopilotThenUninstall(t *testing.T) {
 		t.Fatalf("hook file should exist after init: %v", err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	if err := uninstallCopilot(); err != nil {
 		t.Fatalf("uninstallCopilot: %v", err)
 	}
@@ -90,7 +92,7 @@ func TestInitCopilotThenUninstall(t *testing.T) {
 // nothing was installed.
 func TestUninstallCopilotNoHookFile(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	if err := uninstallCopilot(); err != nil {
 		t.Fatalf("uninstallCopilot on clean home: %v", err)
 	}

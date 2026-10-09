@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/edouard-claude/snip/internal/testutil"
 	"github.com/edouard-claude/snip/internal/trust"
 )
 
@@ -397,7 +398,7 @@ quiet_no_filter = true
 	}
 
 	oldHome := os.Getenv("HOME")
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	_ = oldHome
 
@@ -445,7 +446,7 @@ git-diff = false
 	}
 	// No trust store entry: the project config must NOT apply.
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -523,7 +524,7 @@ git-diff = false
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -594,7 +595,7 @@ stream_mode = "full"
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -678,7 +679,7 @@ max_output_bytes = 1048576
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -735,7 +736,7 @@ max_output_bytes = 1048576
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -789,7 +790,7 @@ commands = ["psql", "jq"]
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -862,7 +863,7 @@ head = 200
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -907,7 +908,7 @@ func TestLoadMergedUntrustedProjectConfigIgnored(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -958,7 +959,7 @@ func TestLoadMergedTrustedProjectConfigApplied(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -1000,7 +1001,7 @@ func TestLoadMergedMissingTrustStoreReturnsUserOnly(t *testing.T) {
 	trustedPath := filepath.Join(home, ".config", "snip", "trusted.json")
 	_ = os.Remove(trustedPath)
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -1054,7 +1055,7 @@ func TestLoadMergedMalformedTrustedConfigDegrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -1104,7 +1105,7 @@ func TestLoadMergedTrustStoreLoadErrorReturnsUserOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -1164,7 +1165,7 @@ func TestLoadMergedTrustRevokedAfterFileModified(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -1230,7 +1231,7 @@ func TestLoadMergedSymlinkedProjectConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	// CWD is the symlinked dir — projectConfigPath walks up from here
@@ -1262,7 +1263,7 @@ func TestLoadMergedCorruptUserConfigReturnsError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 
 	cfg, err := LoadMerged()
@@ -1312,7 +1313,7 @@ func TestLoadMergedProjectConfigWithoutProjectMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -1367,7 +1368,7 @@ func TestLoadMergedMinimalProjectConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	oldWd, _ := os.Getwd()
 	_ = os.Chdir(projectDir)
@@ -1399,7 +1400,7 @@ func TestClaudeBaseDirRespectsEnvVar(t *testing.T) {
 }
 
 func TestClaudeBaseDirFallsBackToHomeClaude(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	testutil.SetHome(t, t.TempDir())
 	t.Setenv("CLAUDE_CONFIG_DIR", "")
 
 	home, err := os.UserHomeDir()
@@ -1442,7 +1443,7 @@ func TestClaudeProjectsDirRespectsEnvVar(t *testing.T) {
 }
 
 func TestClaudeProjectsDirFallsBackToHome(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	testutil.SetHome(t, t.TempDir())
 	t.Setenv("CLAUDE_CONFIG_DIR", "")
 
 	home, err := os.UserHomeDir()
@@ -1485,7 +1486,7 @@ func pluginTestSetup(t *testing.T, pluginContent string, trusted bool) (string, 
 		}
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_PLUGIN_CONFIG", pluginPath)
 	// Point the user config at a missing file: defaults, no interference.
 	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
@@ -1779,7 +1780,7 @@ func TestLoadMergedWithSourcesTrustedProject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	t.Setenv("SNIP_PLUGIN_CONFIG", "")
 	oldWd, _ := os.Getwd()
@@ -1824,7 +1825,7 @@ func TestLoadMergedWithSourcesUntrustedProject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	t.Setenv("SNIP_PLUGIN_CONFIG", "")
 	oldWd, _ := os.Getwd()
@@ -1913,7 +1914,7 @@ func TestLoadMergedWithSourcesInvalidProjectTOML(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	t.Setenv("SNIP_PLUGIN_CONFIG", "")
 	oldWd, _ := os.Getwd()
@@ -1971,7 +1972,7 @@ transparent_prefixes = ["docker exec app"]
 		t.Fatal(err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Setenv("SNIP_CONFIG", userPath)
 	t.Setenv("SNIP_PLUGIN_CONFIG", "")
 	oldWd, _ := os.Getwd()
@@ -1991,7 +1992,7 @@ transparent_prefixes = ["docker exec app"]
 func TestPathDefault(t *testing.T) {
 	t.Setenv("SNIP_CONFIG", "")
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	path := Path()
 	expected := filepath.Join(tmpDir, ".config", "snip", "config.toml")

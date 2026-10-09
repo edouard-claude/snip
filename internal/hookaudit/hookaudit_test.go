@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/edouard-claude/snip/internal/testutil"
 )
 
 func TestParseEvents(t *testing.T) {
@@ -272,7 +274,7 @@ func TestEnabled(t *testing.T) {
 
 func TestLogDirAndLogPath(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	dir := LogDir()
 	expectedDir := filepath.Join(tmpDir, ".local", "share", "snip")
@@ -289,7 +291,7 @@ func TestLogDirAndLogPath(t *testing.T) {
 
 func TestAppendAndReadEvents(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	ts := time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC)
 	e := Event{
@@ -328,7 +330,7 @@ func TestAppendAndReadEvents(t *testing.T) {
 
 func TestAppendRotation(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	ts := time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC)
 	// Append MaxLines+50 events, rotation should keep last MaxLines
@@ -353,7 +355,7 @@ func TestAppendRotation(t *testing.T) {
 
 func TestClearFunc(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	// Append one event first.
 	Append(Event{
@@ -388,7 +390,7 @@ func TestClearFunc(t *testing.T) {
 
 func TestReadEventsNonexistent(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	events, err := ReadEvents()
 	if err != nil {
@@ -401,7 +403,7 @@ func TestReadEventsNonexistent(t *testing.T) {
 
 func TestRun(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	// Append some events first.
 	ts := time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC)
@@ -439,7 +441,7 @@ func TestRun(t *testing.T) {
 
 func TestRunWithTailEquals(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	err := Run([]string{"--tail=10"})
 	if err != nil {
@@ -449,7 +451,7 @@ func TestRunWithTailEquals(t *testing.T) {
 
 func TestRunErrors(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	// --tail without value.
 	err := Run([]string{"--tail"})
