@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/edouard-claude/snip/internal/testutil"
 )
 
 // TestTrackUnwritableDBIsUnavailable verifies that when the tracking DB path is
@@ -273,7 +275,7 @@ func TestDBPath(t *testing.T) {
 func TestDBPathDefault(t *testing.T) {
 	t.Setenv("SNIP_DB_PATH", "")
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	path := DBPath("")
 	expected := filepath.Join(tmpDir, ".local", "share", "snip", "tracking.db")

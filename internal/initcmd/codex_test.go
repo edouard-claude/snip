@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/edouard-claude/snip/internal/testutil"
 )
 
 func TestPatchCodexHooksNew(t *testing.T) {
@@ -407,7 +409,7 @@ func TestInitCodexThenUninstallLeavesConfigUntouched(t *testing.T) {
 		t.Fatalf("initCodex: %v", err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	if err := uninstallCodex(); err != nil {
 		t.Fatalf("uninstallCodex: %v", err)
 	}

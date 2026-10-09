@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/edouard-claude/snip/internal/testutil"
 )
 
 func TestBuildGrokHookConfig(t *testing.T) {
@@ -100,7 +102,7 @@ func TestInitGrokThenUninstall(t *testing.T) {
 		t.Fatalf("hook file should exist after init: %v", err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	if err := uninstallGrok(); err != nil {
 		t.Fatalf("uninstallGrok: %v", err)
 	}
@@ -113,7 +115,7 @@ func TestInitGrokThenUninstall(t *testing.T) {
 // nothing was installed.
 func TestUninstallGrokNoHookFile(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	if err := uninstallGrok(); err != nil {
 		t.Fatalf("uninstallGrok on clean home: %v", err)
 	}
@@ -137,7 +139,7 @@ func TestPromptFileShared(t *testing.T) {
 // uninstalling grok must not delete a file codex may still rely on.
 func TestUninstallGrokKeepsSharedAgentsMD(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Chdir(t.TempDir())
 
 	if err := initPromptAgent("codex", "/usr/local/bin/snip", "/tmp/filters"); err != nil {
@@ -159,7 +161,7 @@ func TestUninstallGrokKeepsSharedAgentsMD(t *testing.T) {
 // codex must not delete an AGENTS.md that grok's prompt mode may rely on.
 func TestUninstallCodexKeepsSharedAgentsMD(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	t.Chdir(t.TempDir())
 
 	if err := initPromptAgent("grok", "/usr/local/bin/snip", "/tmp/filters"); err != nil {
