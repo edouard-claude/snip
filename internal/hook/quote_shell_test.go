@@ -40,6 +40,29 @@ func TestWindowsBinQuotingPerAgent(t *testing.T) {
 		}
 	})
 
+	t.Run("pi gets a bash-safe literal", func(t *testing.T) {
+		// Issue #196: Pi's bash tool is Git Bash on Windows too. The bare path
+		// reached it as `C:Usersme.localbinsnip.exe` and failed with exit 127.
+		var out bytes.Buffer
+		if err := RunPi(strings.NewReader(makePayload("bash", "git status")), &out, commands, nil, bin); err != nil {
+			t.Fatalf("RunPi: %v", err)
+		}
+		got := extractRewrittenCommand(t, out.String())
+		want := `"C:\\Users\\me\\.local\\bin\\snip.exe" run -- git status`
+		if got != want {
+			t.Errorf("command = %q, want %q", got, want)
+		}
+
+		// Re-running the hook on its own output must not wrap it twice.
+		out.Reset()
+		if err := RunPi(strings.NewReader(makePayload("bash", got)), &out, commands, nil, bin); err != nil {
+			t.Fatalf("RunPi (second pass): %v", err)
+		}
+		if out.Len() != 0 {
+			t.Errorf("second pass rewrote again: %s", out.String())
+		}
+	})
+
 	t.Run("codex keeps the bare windows path", func(t *testing.T) {
 		var out bytes.Buffer
 		if err := RunCodex(strings.NewReader(makePayload("Bash", "git status")), &out, commands, nil, bin); err != nil {
