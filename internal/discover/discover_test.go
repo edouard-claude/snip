@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/edouard-claude/snip/internal/testutil"
 )
 
 func TestParseBashCommand(t *testing.T) {
@@ -438,7 +440,7 @@ func TestPrintResultTruncatesLongNames(t *testing.T) {
 }
 
 func TestFindProjectDirsRespectsClaudeConfigDir(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	testutil.SetHome(t, t.TempDir())
 	claudeDir := t.TempDir()
 	t.Setenv("CLAUDE_CONFIG_DIR", claudeDir)
 	t.Chdir(t.TempDir())
@@ -474,7 +476,7 @@ func writeLines(t *testing.T, path string, lines []string) {
 
 func TestRunWithSessionData(t *testing.T) {
 	tmpHome := t.TempDir()
-	t.Setenv("HOME", tmpHome)
+	testutil.SetHome(t, tmpHome)
 
 	// Create a Claude Code project dir with session files.
 	cwd, _ := os.Getwd()
@@ -499,7 +501,7 @@ func TestRunWithSessionData(t *testing.T) {
 
 func TestRunWithSince(t *testing.T) {
 	tmpHome := t.TempDir()
-	t.Setenv("HOME", tmpHome)
+	testutil.SetHome(t, tmpHome)
 
 	cwd, _ := os.Getwd()
 	projectDir := filepath.Join(tmpHome, ".claude", "projects", cwdToProjectName(cwd))

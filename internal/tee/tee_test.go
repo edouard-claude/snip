@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/edouard-claude/snip/internal/testutil"
 )
 
 func testConfig(dir string) Config {
@@ -243,7 +245,7 @@ func TestRotateFiles(t *testing.T) {
 
 func TestDefaultConfig(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	cfg := DefaultConfig()
 	if !cfg.Enabled {

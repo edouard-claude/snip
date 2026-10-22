@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/edouard-claude/snip/internal/filter"
+	"github.com/edouard-claude/snip/internal/testutil"
 )
 
 func TestRunTestsPassingFilter(t *testing.T) {
@@ -342,7 +343,7 @@ func TestPrintReportEmpty(t *testing.T) {
 func TestRunNoArgs(t *testing.T) {
 	// Set HOME to a temp dir so config.Load() doesn't find any user config.
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	// Capture stdout.
 	old := os.Stdout
@@ -367,7 +368,7 @@ func TestRunNoArgs(t *testing.T) {
 
 func TestRunRequireAll(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	exitCode := Run([]string{"--require-all"})
 	if exitCode != 0 {

@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/edouard-claude/snip/internal/testutil"
 )
 
 func TestHashFile(t *testing.T) {
@@ -272,7 +274,7 @@ func TestTrustMultipleFiles(t *testing.T) {
 
 func TestTrustStorePath(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	path := TrustStorePath()
 	expected := filepath.Join(tmpDir, ".config", "snip", "trusted.json")
@@ -283,7 +285,7 @@ func TestTrustStorePath(t *testing.T) {
 
 func TestLoadAndSave(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	// Create necessary directories.
 	configDir := filepath.Join(tmpDir, ".config", "snip")
@@ -317,7 +319,7 @@ func TestLoadAndSave(t *testing.T) {
 
 func TestLoadNonexistent(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHome(t, tmpDir)
 
 	store, err := Load()
 	if err != nil {

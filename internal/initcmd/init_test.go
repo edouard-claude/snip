@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/edouard-claude/snip/internal/testutil"
 )
 
 func TestPatchSettingsNew(t *testing.T) {
@@ -621,7 +623,7 @@ func TestRunUnknownAgent(t *testing.T) {
 }
 
 func TestInitClaudeCodeRespectsClaudeConfigDir(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	testutil.SetHome(t, t.TempDir())
 	claudeDir := t.TempDir()
 	t.Setenv("CLAUDE_CONFIG_DIR", claudeDir)
 
@@ -638,7 +640,7 @@ func TestInitClaudeCodeRespectsClaudeConfigDir(t *testing.T) {
 }
 
 func TestInitClaudeCodeMigratesLegacyHookUnderClaudeConfigDir(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	testutil.SetHome(t, t.TempDir())
 	claudeDir := t.TempDir()
 	t.Setenv("CLAUDE_CONFIG_DIR", claudeDir)
 
@@ -662,7 +664,7 @@ func TestInitClaudeCodeMigratesLegacyHookUnderClaudeConfigDir(t *testing.T) {
 }
 
 func TestUninstallClaudeCodeRespectsClaudeConfigDir(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	testutil.SetHome(t, t.TempDir())
 	claudeDir := t.TempDir()
 	t.Setenv("CLAUDE_CONFIG_DIR", claudeDir)
 

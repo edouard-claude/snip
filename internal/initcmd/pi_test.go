@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/edouard-claude/snip/internal/testutil"
 )
 
 func TestPatchPiSettingsNew(t *testing.T) {
@@ -190,7 +192,7 @@ func TestInitPiThenUninstallSymmetric(t *testing.T) {
 		t.Fatalf("initPi: %v", err)
 	}
 
-	t.Setenv("HOME", home)
+	testutil.SetHome(t, home)
 	if err := uninstallPi(); err != nil {
 		t.Fatalf("uninstallPi: %v", err)
 	}
