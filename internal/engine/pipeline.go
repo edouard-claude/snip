@@ -56,14 +56,15 @@ func (p *Pipeline) Run(command string, args []string) int {
 	}
 
 	// Resolve the filter target. fcmd/fargs are the command whose filter applies
-	// and its args; runnerPrefix is the transparent wrapper tokens (e.g. "run",
-	// "--python", "3.12") that precede the inner command and must be replayed at
-	// execution time. For a normal command these are (command, args, nil).
-	fcmd, fargs := command, args
+	// and its args; leading is the command's own global options that precede
+	// the subcommand (e.g. "-C", "../repo") and runnerPrefix is the transparent
+	// wrapper tokens (e.g. "run", "--python", "3.12") that precede the inner
+	// command. Both must be replayed at execution time. For a plain command
+	// these are (command, args, nil, nil).
+	fcmd := command
 	var runnerPrefix []string
 
-	subcommand, filterArgs := splitFirstArg(fargs)
-	f := p.Registry.Match(fcmd, subcommand, filterArgs)
+	f, leading, fargs := p.matchFilter(fcmd, args)
 
 	// No direct filter: if command starts with a transparent runner prefix
 	// (uv run, poetry run, ...), unwrap to the inner command so its filter
@@ -75,9 +76,8 @@ func (p *Pipeline) Run(command string, args []string) int {
 			if p.isBypassed(inner) {
 				return p.Passthrough(command, args)
 			}
-			isub, ifilter := splitFirstArg(innerArgs)
-			if f2 := p.Registry.Match(inner, isub, ifilter); f2 != nil {
-				f, fcmd, fargs, runnerPrefix = f2, inner, innerArgs, runner
+			if f2, innerLeading, innerRest := p.matchFilter(inner, innerArgs); f2 != nil {
+				f, fcmd, fargs, leading, runnerPrefix = f2, inner, innerRest, innerLeading, runner
 			}
 		}
 	}
@@ -106,12 +106,17 @@ func (p *Pipeline) Run(command string, args []string) int {
 		return p.Passthrough(command, args)
 	}
 
-	// Compute injected args for the (inner) filter, then reattach the runner
-	// prefix so the full wrapper still executes.
+	// Compute injected args for the (inner) filter, then reattach the global
+	// options and the runner prefix so the full command still executes.
 	fullArgs := args
 	finalArgs := fargs
 	if injected, ok := p.Registry.ShouldInject(f, fargs); ok {
 		finalArgs = injected
+	}
+	if len(leading) > 0 {
+		withLeading := make([]string, 0, len(leading)+len(finalArgs))
+		withLeading = append(withLeading, leading...)
+		finalArgs = append(withLeading, finalArgs...)
 	}
 	if runnerPrefix != nil {
 		exec := make([]string, 0, len(runnerPrefix)+1+len(finalArgs))
@@ -254,6 +259,17 @@ func (p *Pipeline) isBypassed(command string) bool {
 		}
 	}
 	return false
+}
+
+// matchFilter resolves the filter for command and args. The global options a
+// command accepts before its subcommand (git -C <dir> status) are split off
+// first, so the subcommand match sees the subcommand rather than the option
+// (issue #201): leading holds them, for the caller to replay in front of the
+// subcommand at execution time, and rest is args without them.
+func (p *Pipeline) matchFilter(command string, args []string) (f *filter.Filter, leading, rest []string) {
+	leading, rest = filter.SplitGlobalFlags(command, args)
+	subcommand, filterArgs := splitFirstArg(rest)
+	return p.Registry.Match(command, subcommand, filterArgs), leading, rest
 }
 
 // splitFirstArg returns the first arg (the subcommand) and the remaining args.
