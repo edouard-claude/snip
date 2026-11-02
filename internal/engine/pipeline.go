@@ -90,6 +90,24 @@ func (p *Pipeline) Run(command string, args []string) int {
 		f, leading, fargs = p.matchFilter(command, args)
 	}
 
+	// Still nothing: `npm test` and `npm run <script>` run a command declared
+	// in package.json, so that command's filter applies to the output (issue
+	// #200). The script is executed as typed: snip cannot inject into a command
+	// line it does not own, so a filter whose pipeline expects its injected
+	// flags (git-status and --porcelain) is skipped rather than fed output in
+	// the wrong shape. viaScript keeps replay away from the typed command too.
+	viaScript := false
+	if f == nil {
+		if inner, innerArgs, ok := p.unwrapScript(command, args); ok {
+			if p.isBypassed(inner) {
+				return p.Passthrough(command, args)
+			}
+			if f2, _, _ := p.matchFilter(inner, innerArgs); f2 != nil && f2.Inject == nil {
+				f, fcmd, fargs, leading, viaScript = f2, inner, innerArgs, nil, true
+			}
+		}
+	}
+
 	// No filter found: passthrough.
 	// Only print a hint when no filter is registered for the base command at
 	// all. If a filter exists but was excluded by flags (e.g. go test -v) or
@@ -115,10 +133,13 @@ func (p *Pipeline) Run(command string, args []string) int {
 	}
 
 	// Compute injected args for the (inner) filter, then reattach the global
-	// options and the runner prefix so the full command still executes.
+	// options and the runner prefix so the full command still executes. A
+	// script's command line lives in package.json: run the script as typed.
 	fullArgs := args
 	finalArgs := fargs
-	if injected, ok := p.Registry.ShouldInject(f, fargs); ok {
+	if viaScript {
+		finalArgs = args
+	} else if injected, ok := p.Registry.ShouldInject(f, fargs); ok {
 		finalArgs = injected
 	}
 	if len(leading) > 0 {
