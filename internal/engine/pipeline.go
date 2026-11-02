@@ -62,14 +62,16 @@ func (p *Pipeline) Run(command string, args []string) int {
 	// command. Both must be replayed at execution time. For a plain command
 	// these are (command, args, nil, nil).
 	fcmd := command
-	var runnerPrefix []string
+	var f *filter.Filter
+	var leading, fargs, runnerPrefix []string
 
-	f, leading, fargs := p.matchFilter(fcmd, args)
-
-	// No direct filter: if command starts with a transparent runner prefix
-	// (uv run, poetry run, ...), unwrap to the inner command so its filter
-	// applies while the full wrapper still executes (issue #95).
-	if f == nil && len(p.TransparentPrefixes) > 0 {
+	// A transparent runner prefix (uv run, poetry run, a user-configured npx,
+	// ...) changes how the inner command runs, not what runs, so the inner
+	// command's filter is the right one even when the runner has a filter of
+	// its own: unwrap before matching the command itself, and let the full
+	// wrapper still execute (issues #95, #202). Matching the runner first
+	// let the built-in npx filter shadow the vitest filter behind `npx vitest`.
+	if len(p.TransparentPrefixes) > 0 {
 		if inner, innerArgs, runner, ok := p.unwrapTransparent(command, args); ok {
 			// Honor the bypass list for the inner command too: a bypassed inner
 			// runs the full wrapper unfiltered, mirroring the outer check above.
@@ -80,6 +82,12 @@ func (p *Pipeline) Run(command string, args []string) int {
 				f, fcmd, fargs, leading, runnerPrefix = f2, inner, innerRest, innerLeading, runner
 			}
 		}
+	}
+
+	// No inner filter (no prefix, unknown inner command, or its filter excluded
+	// by flags): match the command itself.
+	if f == nil {
+		f, leading, fargs = p.matchFilter(command, args)
 	}
 
 	// No filter found: passthrough.
