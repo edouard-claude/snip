@@ -1164,3 +1164,45 @@ func TestRunTrustNonexistent(t *testing.T) {
 		t.Errorf("runTrust nonexistent: expected exit 1, got %d", code)
 	}
 }
+
+// snip check must resolve the subcommand behind git's global options the way
+// the pipeline does (issue #201).
+func TestCheckSkipsGlobalFlagsBeforeSubcommand(t *testing.T) {
+	home := t.TempDir()
+	filterDir := filepath.Join(home, ".config", "snip", "filters")
+	if err := os.MkdirAll(filterDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	filterYAML := `name: "git-status"
+version: 1
+match:
+  command: "git"
+  subcommand: "status"
+pipeline:
+  - action: "keep_lines"
+    pattern: "\\S"
+`
+	if err := os.WriteFile(filepath.Join(filterDir, "git-status.yaml"), []byte(filterYAML), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testutil.SetHome(t, home)
+	t.Setenv("SNIP_CONFIG", filepath.Join(home, ".config", "snip", "config.toml"))
+
+	var buf bytes.Buffer
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	code := Run([]string{"snip", "check", "--", "git", "-C", "../repo", "status"})
+	_ = w.Close()
+	os.Stdout = old
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("ReadFrom: %v", err)
+	}
+
+	if code != 0 {
+		t.Errorf("expected exit code 0, got %d", code)
+	}
+	if !strings.Contains(buf.String(), "filter: git-status") {
+		t.Errorf("expected output to contain 'filter: git-status', got %q", buf.String())
+	}
+}

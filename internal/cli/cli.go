@@ -429,11 +429,14 @@ func runCheck(command string, args []string, flags Flags) int {
 
 	registry := filter.NewRegistry(filters)
 
+	// Same resolution as the pipeline: global options (git -C <dir>) precede
+	// the subcommand and are not part of the match (issue #201).
+	_, rest := filter.SplitGlobalFlags(command, args)
 	subcommand := ""
-	filterArgs := args
-	if len(args) > 0 {
-		subcommand = args[0]
-		filterArgs = args[1:]
+	filterArgs := rest
+	if len(rest) > 0 {
+		subcommand = rest[0]
+		filterArgs = rest[1:]
 	}
 
 	f := registry.Match(command, subcommand, filterArgs)
