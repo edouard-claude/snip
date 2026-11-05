@@ -212,6 +212,9 @@ func TestRunPipedOrRedirectedProducerPassthrough(t *testing.T) {
 		{"redirect to file", "grep -rn foo . > out.txt"},
 		{"append to file", "git log >> out.txt"},
 		{"stderr redirect to file", "grep -rn foo . 2> err.txt"},
+		{"both streams to file", "git log &> out.txt"},
+		{"both streams appended to file", "git log &>> out.txt"},
+		{"merged streams into counter", "git log 2>&1 | wc -l"},
 	}
 
 	for _, tc := range cases {

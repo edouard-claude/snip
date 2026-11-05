@@ -60,6 +60,74 @@ func TestRewriteCommand(t *testing.T) {
 			allKnown: true,
 		},
 		{
+			// "2>&1" duplicates a descriptor, it writes no file: snip already
+			// captures both streams, so the producer is still read by the LLM.
+			name:     "stderr merged into stdout is not a file redirect",
+			cmd:      "go test ./... 2>&1",
+			want:     `"/usr/local/bin/snip" run -- go test ./... 2>&1`,
+			changed:  true,
+			allKnown: true,
+		},
+		{
+			name:     "fd duplication then file redirect leaves producer raw",
+			cmd:      "go test ./... 2>&1 > out.txt",
+			want:     "go test ./... 2>&1 > out.txt",
+			changed:  false,
+			allKnown: true,
+		},
+		{
+			name:     "redirect to a file named after a digit leaves producer raw",
+			cmd:      "go test ./... >&1x",
+			want:     "go test ./... >&1x",
+			changed:  false,
+			allKnown: true,
+		},
+		{
+			// head and tail only cut the stream the LLM reads next: unlike a
+			// counter, they depend on no exact count or content (#111).
+			name:     "pipe into head is wrapped",
+			cmd:      "go test ./... 2>&1 | head -50",
+			want:     `"/usr/local/bin/snip" run -- go test ./... 2>&1 | head -50`,
+			changed:  true,
+			allKnown: true,
+		},
+		{
+			name:     "pipe into tail chain is wrapped",
+			cmd:      "git log | tail -n +2 | head -n 20",
+			want:     `"/usr/local/bin/snip" run -- git log | tail -n +2 | head -n 20`,
+			changed:  true,
+			allKnown: true,
+		},
+		{
+			name:     "truncator followed by a counter leaves producer raw",
+			cmd:      "git log | head -50 | wc -l",
+			want:     "git log | head -50 | wc -l",
+			changed:  false,
+			allKnown: false,
+		},
+		{
+			name:     "truncator writing a file leaves producer raw",
+			cmd:      "git log | head -50 > out.txt",
+			want:     "git log | head -50 > out.txt",
+			changed:  false,
+			allKnown: false,
+		},
+		{
+			name:     "truncator reading a file leaves producer raw",
+			cmd:      "git log | head -n 5 notes.txt",
+			want:     "git log | head -n 5 notes.txt",
+			changed:  false,
+			allKnown: false,
+		},
+		{
+			// "|&" also pipes stderr: left to the generic pipe guard.
+			name:     "stderr pipe into head leaves producer raw",
+			cmd:      "git log |& head -5",
+			want:     "git log |& head -5",
+			changed:  false,
+			allKnown: false,
+		},
+		{
 			// A raw redirected producer must not block auto-allow of a wrapped,
 			// known sibling group (#111): both git and go are attested.
 			name:     "redirect with known sibling still allowed",
