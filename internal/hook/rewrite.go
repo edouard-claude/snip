@@ -215,6 +215,14 @@ func RewriteCommandFor(shell Shell, cmd string, cmdSet map[string]struct{}, pref
 			}
 			groupStart = i
 		case '&':
+			// An '&' inside a redirection operator ("2>&1", "<&0", "&>", "&>>")
+			// is not a group boundary. Splitting there severed the redirection
+			// from its command: "git log &> out.txt" was wrapped and the file
+			// received snip's compacted output (issue #111).
+			if (i > 0 && (cmd[i-1] == '>' || cmd[i-1] == '<')) || (i+1 < len(cmd) && cmd[i+1] == '>') {
+				i++
+				continue
+			}
 			flush(cmd[groupStart:i])
 			if i+1 < len(cmd) && cmd[i+1] == '&' {
 				b.WriteString("&&")
@@ -249,7 +257,9 @@ func RewriteCommandFor(shell Shell, cmd string, cmdSet map[string]struct{}, pref
 // non-empty pipeline tail (extra stages that were left uninspected).
 func rewriteGroup(group string, cmdSet map[string]struct{}, prefixes []TransparentPrefix, quotedBin, snipBin string, shell Shell) (out string, headKnown, hasTail bool) {
 	head, tail := splitFirstPipe(group)
-	hasTail = strings.TrimSpace(tail) != ""
+	// A tail made only of head/tail stages is inspected, not a consumer: it cuts
+	// the stream the LLM reads next and depends on no exact count or content.
+	hasTail = strings.TrimSpace(tail) != "" && !isTruncatorTail(tail)
 
 	// A head whose stdout feeds a downstream consumer must not be wrapped: snip's
 	// lossy compaction (compact_path, truncate_lines, head caps, dedup,
@@ -348,11 +358,40 @@ func splitFirstPipe(group string) (head, tail string) {
 	return group, ""
 }
 
+// isTruncatorTail reports whether every stage of a pipeline tail (as returned
+// by splitFirstPipe) is a head or tail reading stdin, with no operand and no
+// redirection. "|&" is not accepted: it is left to the generic pipe guard.
+func isTruncatorTail(tail string) bool {
+	for tail != "" {
+		if len(tail) < 2 || tail[1] == '&' {
+			return false
+		}
+		var stage string
+		stage, tail = splitFirstPipe(tail[1:])
+		if hasTopLevelRedirect(stage) {
+			return false
+		}
+		fields := strings.Fields(stage)
+		if len(fields) == 0 || (fields[0] != "head" && fields[0] != "tail") {
+			return false
+		}
+		for _, f := range fields[1:] {
+			// Flags ("-50", "-n", "--lines=20") and counts ("20", "+2") only: any
+			// other word is a file operand, read instead of the producer.
+			if !strings.HasPrefix(f, "-") && strings.Trim(strings.TrimPrefix(f, "+"), "0123456789") != "" {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // hasTopLevelRedirect reports whether group contains an unquoted output
 // redirection ('>'), i.e. the producer's stdout/stderr is written to a file
 // rather than read by the LLM. Any top-level '>' counts, covering '>', '>>',
-// '2>', '&>' and '>&'. snip fails safe here: an over-detection only forgoes
-// compaction, whereas a miss would silently corrupt the redirected file
+// '2>', '&>' and '>&file', except a descriptor duplication such as "2>&1":
+// it writes no file, and snip captures both streams anyway. snip fails safe
+// here: an over-detection only forgoes compaction, whereas a miss would silently corrupt the redirected file
 // (issue #111). '<' (stdin) is ignored — it never affects the filtered stdout.
 func hasTopLevelRedirect(group string) bool {
 	var quote byte
@@ -374,10 +413,27 @@ func hasTopLevelRedirect(group string) bool {
 		case '"':
 			quote = '"'
 		case '>':
-			return true
+			if !isFDDup(group, i) {
+				return true
+			}
 		}
 	}
 	return false
+}
+
+// isFDDup reports whether the '>' at i starts a descriptor duplication (">&1",
+// ">&2"): '&' then digits ending the word. ">&1x" names a file.
+func isFDDup(group string, i int) bool {
+	j := i + 1
+	if j >= len(group) || group[j] != '&' {
+		return false
+	}
+	j++
+	start := j
+	for j < len(group) && group[j] >= '0' && group[j] <= '9' {
+		j++
+	}
+	return j > start && (j == len(group) || strings.IndexByte(" \t\n;|&)", group[j]) >= 0)
 }
 
 // firstBase returns the base command of cmd's first segment, used for audit
